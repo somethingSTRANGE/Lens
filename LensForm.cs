@@ -1,4 +1,4 @@
-﻿// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
 // <copyright file="LensForm.cs" company="Strange Entertainment LLC">
 //   Copyright 2004-2023 Strange Entertainment LLC. All rights reserved.
 // </copyright>

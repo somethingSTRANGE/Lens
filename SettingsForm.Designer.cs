@@ -1,4 +1,4 @@
-﻿namespace Lens
+namespace Lens
 {
    partial class SettingsForm
    {

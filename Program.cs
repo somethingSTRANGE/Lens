@@ -1,4 +1,4 @@
-﻿// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
 // <copyright file="Program.cs" company="Greyborn Studios LLC">
 //   Copyright 2015-2026 Greyborn Studios LLC. All rights reserved.
 // </copyright>
