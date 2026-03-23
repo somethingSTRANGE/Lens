@@ -48,7 +48,7 @@
          this.labelGridStyle = new System.Windows.Forms.Label();
          this.valueGridStyle = new System.Windows.Forms.ComboBox();
          this.groupZoom = new System.Windows.Forms.GroupBox();
-         this.icon = new System.Windows.Forms.Label();
+         this.iconPicture = new System.Windows.Forms.PictureBox();
          this.notifyIcon = new System.Windows.Forms.NotifyIcon(this.components);
          this.contextMenu = new System.Windows.Forms.ContextMenu();
          ((System.ComponentModel.ISupportInitialize)(this.valueMagnification)).BeginInit();
@@ -56,6 +56,7 @@
          this.groupGrid.SuspendLayout();
          ((System.ComponentModel.ISupportInitialize)(this.valueGridSize)).BeginInit();
          this.groupZoom.SuspendLayout();
+         ((System.ComponentModel.ISupportInitialize)(this.iconPicture)).BeginInit();
          this.SuspendLayout();
          // 
          // valueAutoClose
@@ -226,25 +227,19 @@
          this.groupZoom.TabStop = false;
          this.groupZoom.Text = "Zoom";
          // 
-         // icon
-         // 
-         this.icon.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-         this.icon.Location = new System.Drawing.Point(12, 12);
-         this.icon.Name = "icon";
-         this.icon.Size = new System.Drawing.Size(64, 64);
-         this.icon.TabIndex = 12;
-         this.icon.Text = "ICON";
-         this.icon.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+         // iconPicture
+         //
+         this.iconPicture.Location = new System.Drawing.Point(12, 12);
+         this.iconPicture.Name = "iconPicture";
+         this.iconPicture.Size = new System.Drawing.Size(64, 64);
+         this.iconPicture.TabIndex = 12;
+         this.iconPicture.TabStop = false;
+         this.iconPicture.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
          // 
          // notifyIcon
          // 
-         this.notifyIcon.BalloonTipText = "Balloon Tip Text";
-         this.notifyIcon.BalloonTipTitle = "Balloon Tip Title";
-         this.notifyIcon.Text = "notifyIcon";
+         this.notifyIcon.Text = "Lens";
          this.notifyIcon.Visible = true;
-         this.notifyIcon.BalloonTipClicked += new System.EventHandler(this.notifyIcon_BalloonTipClicked);
-         this.notifyIcon.BalloonTipClosed += new System.EventHandler(this.notifyIcon_BalloonTipClosed);
-         this.notifyIcon.BalloonTipShown += new System.EventHandler(this.notifyIcon_BalloonTipShown);
          this.notifyIcon.MouseClick += new System.Windows.Forms.MouseEventHandler(this.notifyIcon_MouseClick);
          this.notifyIcon.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.notifyIcon_MouseClick);
          // 
@@ -254,7 +249,7 @@
          this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
          this.BackColor = System.Drawing.SystemColors.Control;
          this.ClientSize = new System.Drawing.Size(252, 237);
-         this.Controls.Add(this.icon);
+         this.Controls.Add(this.iconPicture);
          this.Controls.Add(this.groupZoom);
          this.Controls.Add(this.groupGrid);
          this.Controls.Add(this.buttonShow);
@@ -272,6 +267,7 @@
          this.groupGrid.ResumeLayout(false);
          ((System.ComponentModel.ISupportInitialize)(this.valueGridSize)).EndInit();
          this.groupZoom.ResumeLayout(false);
+         ((System.ComponentModel.ISupportInitialize)(this.iconPicture)).EndInit();
          this.ResumeLayout(false);
       }
 
@@ -281,7 +277,7 @@
 
       private System.Windows.Forms.ComboBox valueGridStyle;
 
-      private System.Windows.Forms.Label icon;
+      private System.Windows.Forms.PictureBox iconPicture;
 
       private System.Windows.Forms.GroupBox groupZoom;
 

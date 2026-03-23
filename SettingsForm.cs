@@ -105,21 +105,9 @@ namespace Lens
                { menuItemOpen, menuItemSettings, menuItemSeparator, menuItemExit });
 
          // this.notifyIcon = new NotifyIcon(this.components);
-         this.notifyIcon.Icon = new Icon("AppIcon.ico");
+         this.notifyIcon.Icon = this.Icon;
          this.notifyIcon.ContextMenu = this.contextMenu;
-         this.notifyIcon.Text = "Settings NotifyIcon test";
-         this.notifyIcon.Visible = true;
-         // this.notifyIcon.BalloonTipClicked += this.notifyIcon_BalloonTipClicked;
-         // this.notifyIcon.BalloonTipClosed += this.notifyIcon_BalloonTipClosed;
-         // this.notifyIcon.BalloonTipShown += this.notifyIcon_BalloonTipShown;
-         // this.notifyIcon.Click += this.notifyIcon_Click;
-         // this.notifyIcon.DoubleClick += this.notifyIcon_DoubleClick;
-         // this.notifyIcon.MouseClick += this.notifyIcon_MouseClick;
-         // this.notifyIcon.MouseDoubleClick += this.notifyIcon_MouseDoubleClick;
-         // this.notifyIcon.MouseClick += this.notifyIcon_MouseClick;
-         // this.notifyIcon.MouseDown += this.notifyIcon_MouseDown;
-         // this.notifyIcon.MouseUp += this.notifyIcon_MouseUp;
-         // this.notifyIcon.MouseMove += this.notifyIcon_MouseMove;
+         this.iconPicture.Image = new Icon(this.Icon, 64, 64).ToBitmap();
       }
 
       private void ClickTimer_Elapsed(object sender, EventArgs e)
@@ -210,21 +198,6 @@ namespace Lens
          this.clickTimer.Stop();
          this.clickTimer.Interval = SystemInformation.DoubleClickTime;
          this.clickTimer.Start();
-      }
-
-      private void notifyIcon_BalloonTipClicked(object sender, EventArgs e)
-      {
-         MessageBox.Show("BalloonTipClicked", "NotifyIcon", MessageBoxButtons.OK);
-      }
-
-      private void notifyIcon_BalloonTipClosed(object sender, EventArgs e)
-      {
-         MessageBox.Show("BalloonTipClosed", "NotifyIcon", MessageBoxButtons.OK);
-      }
-
-      private void notifyIcon_BalloonTipShown(object sender, EventArgs e)
-      {
-         MessageBox.Show("BalloonTipShown", "NotifyIcon", MessageBoxButtons.OK);
       }
 
       private void SettingsForm_FormClosing(object sender, FormClosingEventArgs e)
