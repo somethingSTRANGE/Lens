@@ -17,7 +17,7 @@ namespace Lens
       {
          if (disposing)
          {
-            this.infoControl?.Dispose();
+            // infoControl is now a plain data class — no Dispose needed.
             timer.Dispose();
             scrBmp?.Dispose();
             scrGrp?.Dispose();

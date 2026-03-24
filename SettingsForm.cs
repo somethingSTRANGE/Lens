@@ -9,16 +9,22 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace Lens
 {
    public partial class SettingsForm : Form
    {
+      private const int HotkeyToggle = 1;
+      private const uint ModCtrlShift = 0x0006; // MOD_CONTROL | MOD_SHIFT
+
+      [DllImport("user32.dll")] private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+      [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+      private LensForm activeLens;
       private int clickCount;
-
       private System.Windows.Forms.Timer clickTimer;
-
       private bool shouldExitApplication;
 
       public SettingsForm()
@@ -49,6 +55,8 @@ namespace Lens
          this.valueGridStyle.DataBindings.Add(nameof(this.valueGridStyle.SelectedIndex), dataSource,
             nameof(dataSource.GridStyle), false, DataSourceUpdateMode.OnPropertyChanged);
 
+         // TODO: Remove valueHideCursor from the Settings panel. The lens is now positioned beside
+         // the cursor rather than under it, so hiding the cursor no longer serves any purpose.
          this.valueHideCursor.DataBindings.Add(nameof(this.valueHideCursor.Checked), dataSource,
             nameof(dataSource.HideCursor), false, DataSourceUpdateMode.OnPropertyChanged);
 
@@ -108,6 +116,10 @@ namespace Lens
          this.notifyIcon.Icon = this.Icon;
          this.notifyIcon.ContextMenu = this.contextMenu;
          this.iconPicture.Image = new Icon(this.Icon, 64, 64).ToBitmap();
+
+         // WinForms creates the Win32 handle lazily on first Show(). Force it now so
+         // OnHandleCreated fires immediately and RegisterHotKey works from the start.
+         this.CreateHandle();
       }
 
       private void ClickTimer_Elapsed(object sender, EventArgs e)
@@ -123,7 +135,7 @@ namespace Lens
          }
          else
          {
-            this.OpenLens(); // Click the system tray icon
+            this.ToggleLens();
          }
 
          this.clickCount = 0;
@@ -151,16 +163,40 @@ namespace Lens
 
       private void button_Show_Click(object sender, EventArgs e)
       {
-         this.OpenLens(); // Click the Settings form button
+         this.ToggleLens();
       }
 
-      private void OpenLens()
+      protected override void OnHandleCreated(EventArgs e)
       {
-         Console.WriteLine("Open Lens");
-         var lensForm = new LensForm
-            {
-               TargetLocation = Cursor.Position
-            };
+         base.OnHandleCreated(e);
+         if (!RegisterHotKey(this.Handle, HotkeyToggle, ModCtrlShift, (uint)Keys.Z))
+            Debug.WriteLine($"RegisterHotKey failed: error {Marshal.GetLastWin32Error()}");
+      }
+
+      protected override void OnFormClosed(FormClosedEventArgs e)
+      {
+         base.OnFormClosed(e);
+         UnregisterHotKey(this.Handle, HotkeyToggle);
+      }
+
+      protected override void WndProc(ref Message m)
+      {
+         const int WmHotkey = 0x0312;
+         if (m.Msg == WmHotkey && m.WParam.ToInt32() == HotkeyToggle)
+            this.ToggleLens();
+         base.WndProc(ref m);
+      }
+
+      private void ToggleLens()
+      {
+         if (this.activeLens != null)
+         {
+            this.activeLens.Close();
+            return;
+         }
+         var lensForm = new LensForm { TargetLocation = Cursor.Position };
+         lensForm.FormClosed += (s, e) => this.activeLens = null;
+         this.activeLens = lensForm;
          lensForm.Show();
          lensForm.Activate();
       }
@@ -174,14 +210,14 @@ namespace Lens
 
       private void menuItemExit_Click(object sender, EventArgs e)
       {
-         // Close the form, which closes the application
          this.shouldExitApplication = true;
          this.Close();
+         Application.Exit();
       }
 
       private void menuItemOpen_Click(object sender, EventArgs e)
       {
-         this.OpenLens(); // Click the context menu item
+         this.ToggleLens();
       }
 
       private void menuItemSettings_Click(object sender, EventArgs e)

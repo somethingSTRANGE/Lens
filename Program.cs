@@ -42,6 +42,25 @@ namespace Lens
       [STAThread]
       private static void Main()
       {
+         var logsDir = System.IO.Path.Combine(Application.StartupPath, "Logs");
+         System.IO.Directory.CreateDirectory(logsDir);
+         Debug.Listeners.Add(new TextWriterTraceListener(
+            System.IO.Path.Combine(logsDir, "lens-debug.log")));
+         Debug.AutoFlush = true;
+         Debug.WriteLine("-----");
+         Debug.WriteLine($"Lens started: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n");
+
+         Application.ThreadException += (s, e) =>
+         {
+            Debug.WriteLine("ThreadException: " + e.Exception);
+            LensForm.EmergencyRestoreMouseSpeed();
+         };
+         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+         {
+            Debug.WriteLine("UnhandledException: " + e.ExceptionObject);
+            LensForm.EmergencyRestoreMouseSpeed();
+         };
+
          var createdNew = true;
          using (var mutex = new Mutex(true, "strange-lens-app-mutex", out createdNew))
          {

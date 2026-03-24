@@ -8,50 +8,39 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Windows.Forms;
-using PopupControl;
 
 namespace Lens
 {
-   public partial class InfoControl : UserControl
+   /// <summary>
+   ///   Pure data class — computes and caches the formatted strings displayed in the info panel.
+   ///   Rendering is handled by <see cref="InfoForm"/>.
+   /// </summary>
+   internal class InfoControl
    {
-      private static Dictionary<int, string> knownColors;
+      private static readonly Dictionary<int, string> knownColors = GetColorNames();
 
-      public InfoControl()
+      // Last-computed values — updated each frame by UpdateInfo.
+      public string ValueColorHex  { get; private set; } = string.Empty;
+      public string ValueColorRGB  { get; private set; } = string.Empty;
+      public string ValueColorHSL  { get; private set; } = string.Empty;
+      public string ValueColorName { get; private set; } = string.Empty;
+      public string MousePosition  { get; private set; } = string.Empty;
+      public string LensSize       { get; private set; } = string.Empty;
+      public string ZoomFactor     { get; private set; } = string.Empty;
+      public Color  SwatchColor    { get; private set; }
+      public bool   HasColorName   => !string.IsNullOrEmpty(this.ValueColorName);
+
+      public void UpdateInfo(Point mousePosition, Color color)
       {
-         this.SetStyle(ControlStyles.SupportsTransparentBackColor, true);
-         knownColors = GetColorNames();
-
-         this.InitializeComponent();
+         this.ValueColorHex  = ColorAsHex(color);
+         this.ValueColorRGB  = ColorAsRGB(color);
+         this.ValueColorHSL  = ColorAsHSL(color);
+         this.ValueColorName = ColorAsName(color);
+         this.MousePosition  = $"{mousePosition.X}, {mousePosition.Y}";
+         this.LensSize       = $"{Lens.Instance.Width}×{Lens.Instance.Height}";
+         this.ZoomFactor     = $"x{Lens.Instance.Magnification}";
+         this.SwatchColor    = color;
       }
-
-      public string ValueColorHSL => this.valueColorHSL.Text;
-      public string ValueColorRGB => this.valueColorRGB.Text;
-      public string ValueColorHex => this.valueColorHex.Text;
-
-      public void UpdateInfo(LensForm lens, Popup popup, Point mousePosition, Color color)
-      {
-         this.valueMousePosition.Text = $@"{mousePosition.X}, {mousePosition.Y}";
-         this.valueSize.Text = $@"{Lens.Instance.Width}×{Lens.Instance.Height} ({lens.Width}×{lens.Height})";
-         this.valueZoomFactor.Text = $@"x{Lens.Instance.Magnification}";
-
-         this.valueColorHex.Text = ColorAsHex(color);
-         this.valueColorRGB.Text = ColorAsRGB(color);
-         this.valueColorHSL.Text = ColorAsHSL(color);
-         this.valueColorName.Text = ColorAsName(color);
-         this.valueColor.BackColor = color;
-
-         var hasColorName = !string.IsNullOrEmpty(this.valueColorName.Text);
-         this.labelColorName.Visible = this.valueColorName.Visible = hasColorName;
-
-         var currentScreen = Screen.FromControl(lens);
-         popup.Location = lens.Bounds.Right + 30 + popup.Size.Width > currentScreen.Bounds.Right
-            ? new Point(lens.Bounds.Left - 20 - popup.Size.Width, lens.Bounds.Top)
-            : new Point(lens.Bounds.Right + 20, lens.Bounds.Top);
-      }
-
-
 
       private static string ColorAsHex(Color color)
       {
@@ -63,9 +52,9 @@ namespace Lens
       [SuppressMessage("ReSharper", "InconsistentNaming")]
       private static string ColorAsHSL(Color color)
       {
-         var hue = Math.Round(color.GetHue(), 1);
+         var hue        = Math.Round(color.GetHue(), 1);
          var saturation = Math.Round(color.GetSaturation() * 100, 1);
-         var lightness = Math.Round(color.GetBrightness() * 100, 1);
+         var lightness  = Math.Round(color.GetBrightness() * 100, 1);
          return $"{hue}, {saturation}%, {lightness}%";
       }
 
@@ -75,10 +64,7 @@ namespace Lens
       }
 
       [SuppressMessage("ReSharper", "InconsistentNaming")]
-      private static string ColorAsRGB(Color color)
-      {
-         return $"{color.R}, {color.G}, {color.B}";
-      }
+      private static string ColorAsRGB(Color color) => $"{color.R}, {color.G}, {color.B}";
 
       private static Dictionary<int, string> GetColorNames()
       {
@@ -232,34 +218,6 @@ namespace Lens
                { Color.FromArgb(255, 0xFF, 0xEB, 0x04).ToArgb(), "Yellow (Unity)" },
                { Color.FromArgb(255, 0x9A, 0xCD, 0x32).ToArgb(), "YellowGreen" }
             };
-      }
-
-      public static double GetRectDiagonalAngle(double width, double height)
-      {
-         var sqrHeight = Math.Pow(height, 2);
-         var sqrWidth = Math.Pow(width, 2);
-         var diagonal = Math.Sqrt(sqrWidth + sqrHeight);
-         var sqrDiagonal = Math.Pow(diagonal, 2);
-
-         var radA = Math.Acos((sqrHeight + sqrDiagonal - sqrWidth) / (2 * height * diagonal));
-         var degA = 180 / Math.PI * radA;
-         // var degB = 180 - 90 - degA;
-
-         return degA;
-      }
-
-      private void InfoControl_Paint(object sender, PaintEventArgs e)
-      {
-         var graphics = e.Graphics;
-         var rect = new Rectangle(0, 0, this.Width - 3, this.Height - 3);
-         var color1 = Color.FromArgb(0, 0, 0);
-         var color2 = Color.FromArgb(57, 128, 227);
-         color2 = Color.FromArgb(51, 51, 51);
-         Brush b = new LinearGradientBrush(rect, color1, color2,
-            (float)GetRectDiagonalAngle(rect.Width, rect.Height));
-         graphics.FillRectangle(b, rect);
-
-
       }
    }
 }
