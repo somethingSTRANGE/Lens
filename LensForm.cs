@@ -201,6 +201,8 @@ namespace Lens
       [DllImport("user32.dll")] private static extern bool UnhookWindowsHookEx(IntPtr hhk);
       [DllImport("user32.dll")] private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
       [DllImport("kernel32.dll")] private static extern IntPtr GetModuleHandle(string lpModuleName);
+      [DllImport("user32.dll", SetLastError = true)]
+      private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
 
       // Called by Program.cs on unhandled exceptions to ensure mouse speed is always restored.
       internal static void EmergencyRestoreMouseSpeed()
@@ -439,6 +441,10 @@ namespace Lens
             g.Flush();
             this.CompositeFinalFrame(w, h, totalW, totalH);
             this.CommitLayeredWindow(winPos, totalW, totalH);
+            // Re-assert topmost every frame so popup menus, taskbar thumbnails, and tooltips
+            // (which are also topmost but created after us) don't permanently cover the lens.
+            const uint SWP_NOMOVE_NOSIZE_NOACTIVATE = 0x0013; // SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE
+            SetWindowPos(this.Handle, new IntPtr(-1), 0, 0, 0, 0, SWP_NOMOVE_NOSIZE_NOACTIVATE);
             this.infoForm.UpdateAndPosition(cursorPos, sampledColor, new Rectangle(lensLeft, lensTop, w, h));
          }
          catch (Exception ex)

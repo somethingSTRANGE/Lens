@@ -213,17 +213,19 @@ namespace Lens
          this.CompositeFinalFrame(totalW, totalH);
          this.CommitLayeredWindow(winPos, totalW, totalH);
 
-         if (!this.Visible)
          {
-            // HWND_TOPMOST(-1) + SWP_NOACTIVATE|SWP_SHOWWINDOW: show without stealing focus,
-            // inserted into the topmost Z-band (matches LensForm's TopMost = true).
+            // Re-assert topmost every frame so popup menus, taskbar thumbnails, and tooltips
+            // (also topmost, but created after us) don't permanently cover the info panel.
+            // LensForm calls SetWindowPos for itself just before this, so InfoForm ends up
+            // above LensForm — consistent with the current Z-order.
             var hwndTopmost = new IntPtr(-1);
             const uint SWP_NOSIZE     = 0x0001;
             const uint SWP_NOMOVE     = 0x0002;
             const uint SWP_NOACTIVATE = 0x0010;
             const uint SWP_SHOWWINDOW = 0x0040;
-            SetWindowPos(this.Handle, hwndTopmost, 0, 0, 0, 0,
-               SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+            uint flags = SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE;
+            if (!this.Visible) flags |= SWP_SHOWWINDOW;
+            SetWindowPos(this.Handle, hwndTopmost, 0, 0, 0, 0, flags);
          }
       }
 

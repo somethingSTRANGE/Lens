@@ -17,7 +17,7 @@ namespace Lens
    public partial class SettingsForm : Form
    {
       private const int HotkeyToggle = 1;
-      private const uint ModCtrlShift = 0x0006; // MOD_CONTROL | MOD_SHIFT
+      private const uint ModCtrlAltShift = 0x0007; // MOD_CONTROL | MOD_ALT | MOD_SHIFT
 
       [DllImport("user32.dll")] private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
       [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
@@ -169,7 +169,7 @@ namespace Lens
       protected override void OnHandleCreated(EventArgs e)
       {
          base.OnHandleCreated(e);
-         if (!RegisterHotKey(this.Handle, HotkeyToggle, ModCtrlShift, (uint)Keys.Z))
+         if (!RegisterHotKey(this.Handle, HotkeyToggle, ModCtrlAltShift, (uint)Keys.Z))
             Debug.WriteLine($"RegisterHotKey failed: error {Marshal.GetLastWin32Error()}");
       }
 
