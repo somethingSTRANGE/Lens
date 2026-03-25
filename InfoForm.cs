@@ -6,6 +6,7 @@
 
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
@@ -109,7 +110,7 @@ namespace Lens
                                     ContentH + ShadowMarginT + ShadowMarginB);
          // Start off-screen; shown lazily by UpdateAndPosition after first position set.
          this.Location = new Point(-32000, -32000);
-         this.valueFont = new Font("JetBrains Mono", 13f, FontStyle.Regular, GraphicsUnit.Pixel);
+         this.valueFont = CreateValueFont(13f);
       }
 
       // Never activates on Show() — must remain true for the window to be non-activatable.
@@ -120,6 +121,7 @@ namespace Lens
          get
          {
             var cp = base.CreateParams;
+            cp.ExStyle |= 0x00000008; // WS_EX_TOPMOST — always above non-topmost windows
             cp.ExStyle |= 0x00080000; // WS_EX_LAYERED — required for UpdateLayeredWindow
             cp.ExStyle |= 0x08000000; // WS_EX_NOACTIVATE — never activated by the OS
             return cp;
@@ -152,6 +154,43 @@ namespace Lens
          base.OnClosing(e);
       }
 
+      /// <summary>
+      ///   Creates the value font, preferring a clean monospace in order:
+      ///   JetBrains Mono → Consolas → system generic monospace (Courier New).
+      ///   Uses <c>Font.Name</c> to detect silent GDI+ substitution.
+      /// </summary>
+      private static Font CreateValueFont(float emSize)
+      {
+         var fontInfos = new[]
+            {
+               new { Name = "JetBrains Mono",  Size = emSize },
+               new { Name = "Fira Code",       Size = emSize },  // y-1
+               new { Name = "Consolas",        Size = emSize + 1},   // 14px
+               new { Name = "Lucida Console",  Size = emSize }, // y-3
+               new { Name = "Noto Mono",       Size = emSize },   // y-1
+               new { Name = "Courier New",     Size = emSize }, // y-1
+            };
+         
+         foreach (var fontInfo in fontInfos)
+         {
+            var font = new Font(fontInfo.Name, fontInfo.Size, FontStyle.Regular, GraphicsUnit.Pixel);
+            if (string.Equals(font.Name, fontInfo.Name, StringComparison.OrdinalIgnoreCase))
+            {
+               float ascentPx  = font.FontFamily.GetCellAscent(font.Style) * font.Size / font.FontFamily.GetEmHeight(font.Style);
+               float descentPx = font.FontFamily.GetCellDescent(font.Style) * font.Size / font.FontFamily.GetEmHeight(font.Style);
+               var top = 0 - ascentPx; 
+               Debug.WriteLine(
+                  $"{font}\n{font.Size}, {font.SizeInPoints}, {font.Height}, ascent: {ascentPx}, descent: {descentPx}, top: {top}");
+               return font;
+            }
+            font.Dispose();
+         }
+         // FontFamily.GenericMonospace always resolves — Courier New on Windows.
+         var systemMonospaceFont = new Font(FontFamily.GenericMonospace, emSize, FontStyle.Regular, GraphicsUnit.Pixel);
+         // Debug.WriteLine(font.Name);
+         return systemMonospaceFont; // y-2
+      }
+
       // ── Public update entry-point, called each frame from LensForm.RenderFrame. ────────
       public void UpdateAndPosition(Point cursorPos, Color color, Rectangle contentBounds)
       {
@@ -176,12 +215,14 @@ namespace Lens
 
          if (!this.Visible)
          {
-            // SetWindowPos SWP_NOACTIVATE | SWP_SHOWWINDOW — guaranteed no activation.
+            // HWND_TOPMOST(-1) + SWP_NOACTIVATE|SWP_SHOWWINDOW: show without stealing focus,
+            // inserted into the topmost Z-band (matches LensForm's TopMost = true).
+            var hwndTopmost = new IntPtr(-1);
             const uint SWP_NOSIZE     = 0x0001;
             const uint SWP_NOMOVE     = 0x0002;
             const uint SWP_NOACTIVATE = 0x0010;
             const uint SWP_SHOWWINDOW = 0x0040;
-            SetWindowPos(this.Handle, IntPtr.Zero, 0, 0, 0, 0,
+            SetWindowPos(this.Handle, hwndTopmost, 0, 0, 0, 0,
                SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
          }
       }
@@ -191,7 +232,7 @@ namespace Lens
       private void RenderContent()
       {
          using var g = Graphics.FromHdc(this.layeredMemDC);
-         g.TextRenderingHint = TextRenderingHint.AntiAlias;
+         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
          g.SmoothingMode     = SmoothingMode.HighQuality;
 
          // Background: diagonal gradient, black → #333333.
@@ -200,19 +241,51 @@ namespace Lens
             g.FillRectangle(bg, bgRect);
 
          var d          = this.infoData;
-         var labelFont  = SystemFonts.DefaultFont;
+         using var labelFont = new Font("Segoe UI", 12f, FontStyle.Regular, GraphicsUnit.Pixel);
          var labelColor = Color.FromArgb(0xFF, 0xFF, 0xE1); // SystemColors.Info default
 
          using var labelBrush = new SolidBrush(labelColor);
          using var valueBrush = new SolidBrush(Color.White);
-         var ellipsis = new StringFormat { Trimming = StringTrimming.EllipsisCharacter,
-                                           FormatFlags = StringFormatFlags.NoWrap };
+         using var outlinePen = new Pen(Color.DarkSlateGray);
+         var valueStringFormat = new StringFormat { Trimming = StringTrimming.EllipsisCharacter,
+                                           FormatFlags = StringFormatFlags.NoWrap,
+                                           Alignment = StringAlignment.Near,
+                                           LineAlignment = StringAlignment.Center,
+            };
 
+         void DrawStringAtBaseline(
+            Graphics g,
+            string text,
+            Font font,
+            Brush brush,
+            float x,
+            float baselineY)
+         {
+            var ff    = font.FontFamily;
+            var style = font.Style;
+            float ascentPx = font.Size * ff.GetCellAscent(style) / ff.GetEmHeight(style);
+
+            // GenericTypographic makes PointF.Y exactly the top of the cell ascent, so the
+            // cellAscent/emHeight formula is exact. GenericDefault (the implicit default) adds
+            // internal-leading-based padding above, causing a systematic downward shift for fonts
+            // like Courier New and Segoe UI that have non-zero internal leading.
+            g.DrawString(text, font, brush, new PointF(x, baselineY - ascentPx),
+               StringFormat.GenericTypographic);
+         }
+         
          void Row(string label, string value, int labelY, int valueY, int valueW = 128)
          {
-            g.DrawString(label, labelFont, labelBrush, 4f, labelY);
-            g.DrawString(value, this.valueFont, valueBrush,
-               new RectangleF(50, valueY, valueW, 16), ellipsis);
+            var baseline = labelY + 11;
+            var layoutRectangle = new RectangleF(50, valueY, valueW, 16);
+            // g.FillRectangle(labelBrush, layoutRectangle);
+            g.DrawRectangle(outlinePen, Rectangle.Round(layoutRectangle));
+            g.DrawLine(outlinePen, new Point(2, labelY+10), new Point((int)layoutRectangle.Right + 2, labelY+10));
+
+            // g.DrawString(label, labelFont, labelBrush, 4f, labelY);
+            // g.DrawString(value, this.valueFont, valueBrush, layoutRectangle, valueStringFormat);
+
+            DrawStringAtBaseline(g, label, labelFont, labelBrush, 4, baseline);
+            DrawStringAtBaseline(g, value, this.valueFont, valueBrush, 50, baseline);
          }
 
          Row("HEX",   d.ValueColorHex,  6,   4,  128);
