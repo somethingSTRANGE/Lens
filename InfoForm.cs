@@ -33,12 +33,27 @@ namespace Lens
       private const int   ShadowMarginR  = ShadowBlur;
       private const int   ShadowMarginB  = ShadowBlur + ShadowOffsetY;  // 22
 
-      // ── Fixed content dimensions. ───────────────────────────────────────────────────────
-      internal const int ContentW = 215;
-      internal const int ContentH = 128;
+      // ── Content dimensions. ────────────────────────────────────────────────────────────
+      internal const int ContentW = 230;  // fixed; grows to accommodate icon column
+      private int contentH;               // dynamic; recomputed from enabled settings each frame
 
       /// <summary>Horizontal gap (px) between the lens content edge and this panel.</summary>
-      internal const int PanelGap = 20;
+      internal const int PanelMargin = 20;
+      private const int PanelPadding = 6;
+      private const int ColumnGap = 4;
+      private const int RowGap = 2;
+      private const int RowHeight = 16;
+      private const int SectionGap = ColumnGap * 2 - RowGap;
+      
+      private const int IconSize = 16;
+      private const int IconX = PanelPadding;
+      
+      private const int LabelWidth = 40;
+      private const int LabelX = PanelPadding + IconSize + ColumnGap;
+
+      private const int ValueX = LabelX + LabelWidth + ColumnGap;
+
+      private const int SwatchSize = 24;
 
       // ── Win32 interop. ─────────────────────────────────────────────────────────────────
       private const uint ULW_ALPHA = 0x00000002;
@@ -97,6 +112,14 @@ namespace Lens
 
       private byte[] shadowAlpha;
       private int cachedShadowContentW = -1, cachedShadowContentH = -1;
+      private int cachedLayeredW = -1, cachedLayeredH = -1;
+
+      // ── Icon paths — built once at IconSize, reused every frame. ───────────────────────
+      private readonly GraphicsPath iconColorPalette;
+      private readonly GraphicsPath iconColorValues;
+      private readonly GraphicsPath iconLensSize;
+      private readonly GraphicsPath iconMagnification;
+      private readonly GraphicsPath iconMousePosition;
 
       // ── Constructor. ───────────────────────────────────────────────────────────────────
       public InfoForm(InfoControl infoData)
@@ -106,11 +129,17 @@ namespace Lens
          this.ShowInTaskbar   = false;
          this.StartPosition   = FormStartPosition.Manual;
          // Window size includes shadow margins on all sides.
+         this.contentH = this.ComputeContentH();
          this.ClientSize = new Size(ContentW + ShadowMarginL + ShadowMarginR,
-                                    ContentH + ShadowMarginT + ShadowMarginB);
+                                    this.contentH + ShadowMarginT + ShadowMarginB);
          // Start off-screen; shown lazily by UpdateAndPosition after first position set.
          this.Location = new Point(-32000, -32000);
-         this.valueFont = CreateValueFont(13f);
+         this.valueFont          = CreateValueFont(13f);
+         this.iconColorPalette   = IconPaths.Build(IconPaths.ColorPalette,   IconSize);
+         this.iconColorValues    = IconPaths.Build(IconPaths.ColorValues,    IconSize);
+         this.iconLensSize       = IconPaths.Build(IconPaths.LensSize,       IconSize);
+         this.iconMagnification  = IconPaths.Build(IconPaths.Magnification,  IconSize);
+         this.iconMousePosition  = IconPaths.Build(IconPaths.MousePosition,  IconSize);
       }
 
       // Never activates on Show() — must remain true for the window to be non-activatable.
@@ -148,6 +177,11 @@ namespace Lens
       {
          this.valueFont?.Dispose();
          this.valueFont = null;
+         this.iconColorPalette?.Dispose();
+         this.iconColorValues?.Dispose();
+         this.iconLensSize?.Dispose();
+         this.iconMagnification?.Dispose();
+         this.iconMousePosition?.Dispose();
          this.FreeLayeredResources();
          this.FreeFinalResources();
          this.shadowAlpha = null;
@@ -165,9 +199,9 @@ namespace Lens
             {
                new { Name = "JetBrains Mono",  Size = emSize },
                new { Name = "Fira Code",       Size = emSize },  // y-1
+               new { Name = "Noto Mono",       Size = emSize },   // y-1
                new { Name = "Consolas",        Size = emSize + 1},   // 14px
                new { Name = "Lucida Console",  Size = emSize }, // y-3
-               new { Name = "Noto Mono",       Size = emSize },   // y-1
                new { Name = "Courier New",     Size = emSize }, // y-1
             };
          
@@ -196,18 +230,26 @@ namespace Lens
       {
          this.infoData.UpdateInfo(cursorPos, color);
 
+         // Recompute content height from current settings; free layered bitmap if size changed.
+         int newContentH = this.ComputeContentH();
+         if (newContentH != this.contentH)
+         {
+            this.contentH = newContentH;
+            this.FreeLayeredResources();
+         }
+
          // Info mirrors the lens side — already flipped by LensForm.RenderFrame.
          bool lensIsRightOfCursor = contentBounds.Left >= cursorPos.X;
          int infoContentLeft = lensIsRightOfCursor
-            ? contentBounds.Right + PanelGap
-            : contentBounds.Left - PanelGap - ContentW;
+            ? contentBounds.Right + PanelMargin
+            : contentBounds.Left - PanelMargin - ContentW;
          int infoContentTop = contentBounds.Top;
 
          int totalW = ContentW + ShadowMarginL + ShadowMarginR;
-         int totalH = ContentH + ShadowMarginT + ShadowMarginB;
+         int totalH = this.contentH + ShadowMarginT + ShadowMarginB;
          var winPos = new Point(infoContentLeft - ShadowMarginL, infoContentTop - ShadowMarginT);
 
-         this.EnsureLayeredResources();
+         this.EnsureLayeredResources(ContentW, this.contentH);
          this.EnsureFinalResources(totalW, totalH);
          this.RenderContent();
          this.CompositeFinalFrame(totalW, totalH);
@@ -231,94 +273,256 @@ namespace Lens
 
       // ── Rendering. ─────────────────────────────────────────────────────────────────────
 
+      /// <summary>
+      ///   Computes the dynamic content height from the current display-toggle settings.
+      ///   Must stay in sync with the draw order in <see cref="RenderContent"/>.
+      /// </summary>
+      private int ComputeContentH()
+      {
+         var lens = Lens.Instance;
+         var h = PanelPadding;
+
+         // color-values section.
+         var needGap = false;
+         var showSection = lens.InfoShowHex || lens.InfoShowRgb || lens.InfoShowHsl;
+         if (showSection)
+         {
+            if (lens.InfoShowHex) h += RowHeight + RowGap;
+            if (lens.InfoShowRgb) h += RowHeight + RowGap;
+            if (lens.InfoShowHsl) h += RowHeight + RowGap;
+            needGap = true;
+         }
+
+         // color-palette section
+         showSection = lens.InfoShow12Bit || lens.InfoShowWeb;
+         if (showSection)
+         {
+            if (needGap) h += SectionGap;
+            if (lens.InfoShow12Bit) h += RowHeight + RowGap;
+            if (lens.InfoShowWeb) h += RowHeight + RowGap;
+            needGap = true;
+         }
+
+         showSection = lens.InfoShowMouse || lens.InfoShowSize || lens.InfoShowZoom;
+         if (showSection)
+         {
+            if (needGap) h += SectionGap;
+            if (lens.InfoShowMouse) h += RowHeight + RowGap;
+            if (lens.InfoShowSize) h += RowHeight + RowGap;
+            if (lens.InfoShowZoom) h += RowHeight + RowGap;
+         }
+         
+         // if at least one row was drawn, the final row added an unnecessary trailing gap
+         if (h > PanelPadding) h -= RowGap;
+
+         h += PanelPadding;
+         return h;
+      }
+
       private void RenderContent()
       {
+         var d = this.infoData;
+         var lens = Lens.Instance;
+
          using var g = Graphics.FromHdc(this.layeredMemDC);
          g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
-         g.SmoothingMode     = SmoothingMode.HighQuality;
+         g.SmoothingMode = SmoothingMode.HighQuality;
+         g.SmoothingMode = SmoothingMode.None;
+         g.PixelOffsetMode = PixelOffsetMode.Half;
 
          // Background: diagonal gradient, black → #333333.
-         var bgRect = new Rectangle(0, 0, ContentW, ContentH);
+         var bgRect = new Rectangle(0, 0, ContentW, this.contentH);
          using (var bg = new LinearGradientBrush(bgRect, Color.Black, Color.FromArgb(51, 51, 51), 45f))
             g.FillRectangle(bg, bgRect);
 
-         var d          = this.infoData;
          using var labelFont = new Font("Segoe UI", 12f, FontStyle.Regular, GraphicsUnit.Pixel);
-         var labelColor = Color.FromArgb(0xFF, 0xFF, 0xE1); // SystemColors.Info default
-
-         using var labelBrush = new SolidBrush(labelColor);
+         using var labelBrush = new SolidBrush(Color.FromArgb(0xFF, 0xFF, 0xE1));
          using var valueBrush = new SolidBrush(Color.White);
-         using var outlinePen = new Pen(Color.DarkSlateGray);
-         var valueStringFormat = new StringFormat { Trimming = StringTrimming.EllipsisCharacter,
-                                           FormatFlags = StringFormatFlags.NoWrap,
-                                           Alignment = StringAlignment.Near,
-                                           LineAlignment = StringAlignment.Center,
-            };
+         using var outlinePen = new Pen(Color.DarkSlateGray) { Alignment = PenAlignment.Inset };
 
-         void DrawStringAtBaseline(
-            Graphics g,
-            string text,
-            Font font,
-            Brush brush,
-            float x,
-            float baselineY)
+         // Layout constants.
+         // Icon column: x=2, width=16. Gap=4. Label starts at x=22.
+         // Value starts at x=68 (~46px label width). Value extends to right edge minus margin.
+         int valueW = ContentW - ValueX - PanelPadding;
+
+         void DrawStringAtBaseline(string text, Font font, Brush brush, float x, float baselineY)
          {
-            var ff    = font.FontFamily;
-            var style = font.Style;
-            float ascentPx = font.Size * ff.GetCellAscent(style) / ff.GetEmHeight(style);
+            if (font.Name == "Courier New")
+            {
+               baselineY--;
+            }
 
-            // GenericTypographic makes PointF.Y exactly the top of the cell ascent, so the
-            // cellAscent/emHeight formula is exact. GenericDefault (the implicit default) adds
-            // internal-leading-based padding above, causing a systematic downward shift for fonts
-            // like Courier New and Segoe UI that have non-zero internal leading.
+            var ff = font.FontFamily;
+            var style = font.Style;
+            float ascentPx = (float)Math.Round(font.Size * ff.GetCellAscent(style) / ff.GetEmHeight(style));
+            // GenericTypographic: PointF.Y is exactly the top of the cell ascent — no internal-leading shift.
             g.DrawString(text, font, brush, new PointF(x, baselineY - ascentPx),
                StringFormat.GenericTypographic);
          }
-         
-         void Row(string label, string value, int labelY, int valueY, int valueW = 128)
+
+         void DrawRow(string label, string value, float y)
          {
-            var baseline = labelY + 11;
-            var layoutRectangle = new RectangleF(50, valueY, valueW, 16);
-            // g.FillRectangle(labelBrush, layoutRectangle);
-            g.DrawRectangle(outlinePen, Rectangle.Round(layoutRectangle));
-            g.DrawLine(outlinePen, new Point(2, labelY+10), new Point((int)layoutRectangle.Right + 2, labelY+10));
+            var baseline = y + RowHeight - 3;
 
-            // g.DrawString(label, labelFont, labelBrush, 4f, labelY);
-            // g.DrawString(value, this.valueFont, valueBrush, layoutRectangle, valueStringFormat);
+            // var layout = new RectangleF(LabelX, y, 40, RowHeight);
+            // DrawOutline(g, Rectangle.Round(layout));
+            // layout = new RectangleF(ValueX, y, valueW, RowHeight);
+            // DrawOutline(g, Rectangle.Round(layout));
+            // g.DrawLine(outlinePen, new PointF(LabelX - 1, baseline), new PointF(layout.Right + 2, baseline));
 
-            DrawStringAtBaseline(g, label, labelFont, labelBrush, 4, baseline);
-            DrawStringAtBaseline(g, value, this.valueFont, valueBrush, 50, baseline);
+            DrawStringAtBaseline(label, labelFont, labelBrush, LabelX, baseline);
+            DrawStringAtBaseline(value, this.valueFont, valueBrush, ValueX, baseline);
          }
 
-         Row("HEX",   d.ValueColorHex,  6,   4,  128);
-         Row("RGB",   d.ValueColorRGB,   22,  20);
-         Row("HSL",   d.ValueColorHSL,   38,  36);
+         float y = PanelPadding; // tracked Y; advances as sections are drawn
 
-         if (d.HasColorName)
-            Row("Name", d.ValueColorName, 54, 52);
+         // ── color-values section ────────────────────────────────────────────────────────
+         bool cvAny = lens.InfoShowHex || lens.InfoShowRgb || lens.InfoShowHsl;
+         if (cvAny)
+         {
+            // ── mouse-position section ─────────────────────────────────────────────────────
+            var swatch = new Rectangle(ContentW - PanelPadding - SwatchSize, (int)y, SwatchSize, SwatchSize);
+            using (var swatchBrush = new SolidBrush(d.SwatchColor))
+               g.FillRectangle(swatchBrush, swatch);
+            g.DrawRectangle(Pens.Black, swatch.X, swatch.Y, swatch.Width - 1, swatch.Height - 1);
 
-         Row("Mouse", d.MousePosition,   76,  74);
-         Row("Size",  d.LensSize,         92,  90);
-         Row("Zoom",  d.ZoomFactor,       108, 106);
+            // Icon baseline-aligned with the section's first row.
+            DrawIcon(g, this.iconColorValues, valueBrush, IconX, y, IconSize);
+            if (lens.InfoShowHex)
+            {
+               DrawRow("HEX", d.ValueColorHex, y);
+               y += RowHeight + RowGap;
+            }
 
-         // Color swatch — 24×24 filled square with 1px border at (181, 7).
-         var swatch = new Rectangle(181, 7, 24, 24);
-         using (var swatchBrush = new SolidBrush(d.SwatchColor))
-            g.FillRectangle(swatchBrush, swatch);
-         g.DrawRectangle(Pens.Black, swatch.X, swatch.Y, swatch.Width - 1, swatch.Height - 1);
+            if (lens.InfoShowRgb)
+            {
+               DrawRow("RGB", d.ValueColorRGB, y);
+               y += RowHeight + RowGap;
+            }
+
+            if (lens.InfoShowHsl)
+            {
+               DrawRow("HSL", d.ValueColorHSL, y);
+               y += RowHeight + RowGap;
+            }
+         }
+
+         // ── color-palette section (swatch) ─────────────────────────────────────────────
+         if (cvAny) y += SectionGap;
+
+         cvAny = lens.InfoShow12Bit || lens.InfoShowWeb;
+         if (cvAny)
+         {
+            DrawIcon(g, this.iconColorPalette, valueBrush, IconX, y, IconSize);
+            if (lens.InfoShow12Bit)
+            {
+               DrawRow("12-Bit", d.ValueColorHex, y);
+               y += RowHeight + RowGap;
+            }
+
+            if (lens.InfoShowHsl)
+            {
+               DrawRow("Web", d.ValueColorHex, y);
+               y += RowHeight + RowGap;
+            }
+         }
+
+         // ── mouse-position section ─────────────────────────────────────────────────────
+         if (cvAny) y += SectionGap;
+
+         if (lens.InfoShowMouse)
+         {
+            DrawIcon(g, this.iconMousePosition, valueBrush, IconX, y, IconSize);
+            DrawRow("Mouse", d.MousePosition, y);
+            y += RowHeight + RowGap;
+         }
+
+         // ── lens-size section (no gap) ─────────────────────────────────────────────────
+         if (lens.InfoShowSize)
+         {
+            DrawIcon(g, this.iconLensSize, valueBrush, IconX, y, IconSize);
+            DrawRow("Size", d.LensSize, y);
+            y += RowHeight + RowGap;
+         }
+
+         // ── magnification section (no gap) ─────────────────────────────────────────────
+         if (lens.InfoShowZoom)
+         {
+            DrawIcon(g, this.iconMagnification, valueBrush, IconX, y, IconSize);
+            DrawRow("Zoom", d.ZoomFactor, y);
+         }
+
+         /// <summary>
+         ///   Fills a pre-built <see cref="GraphicsPath"/> icon using <paramref name="brush"/>.
+         ///   (<paramref name="x"/>, <paramref name="y"/>) is the lower-left (baseline) corner,
+         ///   so the same y can be passed to both this and <c>DrawStringAtBaseline</c> to align
+         ///   an icon with adjacent text. <paramref name="size"/> must match the value used when
+         ///   the path was built — it is used to shift the path's upper-left to the correct origin.
+         /// </summary>
+         void DrawIcon(Graphics g, GraphicsPath path, Brush brush, float x, float y, float size)
+         {
+            // var rect = new RectangleF(x, y, size, size);
+            // DrawRect(g, rect, Color.Blue);
+            // DrawOutline(g, rect);
+
+            var smoothingMode = g.SmoothingMode;
+            g.SmoothingMode = SmoothingMode.HighQuality;
+
+            var state = g.Save();
+            g.TranslateTransform(x, y);
+            g.FillPath(brush, path);
+            g.Restore(state);
+            
+            g.SmoothingMode = smoothingMode;
+         }
+
+#pragma warning disable CS8321 // Local function is declared but never used
+         void DrawRect(Graphics g, RectangleF rect, Color color)
+         {
+            var smoothingMode = g.SmoothingMode;
+            var pixelOffsetMode = g.PixelOffsetMode;
+            g.SmoothingMode = SmoothingMode.None;
+            g.PixelOffsetMode = PixelOffsetMode.Half;
+
+            using (var brush = new SolidBrush(color))
+               g.FillRectangle(brush, rect);
+
+            g.SmoothingMode = smoothingMode;
+            g.PixelOffsetMode = pixelOffsetMode;
+         }
+#pragma warning restore CS8321 // Local function is declared but never used
+
+         void DrawOutline(Graphics g, RectangleF rect)
+         {
+            var smoothingMode = g.SmoothingMode;
+            var pixelOffsetMode = g.PixelOffsetMode;
+            g.SmoothingMode = SmoothingMode.None;
+            g.PixelOffsetMode = PixelOffsetMode.Half;
+
+            g.DrawLine(outlinePen, rect.Left, rect.Top + 1, rect.Right, rect.Top + 1);
+            g.DrawLine(outlinePen, rect.Right, rect.Top, rect.Right, rect.Bottom);
+            g.DrawLine(outlinePen, rect.Right, rect.Bottom, rect.Left, rect.Bottom);
+            g.DrawLine(outlinePen, rect.Left + 1, rect.Bottom, rect.Left + 1, rect.Top + 1);
+
+            g.SmoothingMode = smoothingMode;
+            g.PixelOffsetMode = pixelOffsetMode;
+         }
       }
 
       // ── GDI resource management (mirrors LensForm). ────────────────────────────────────
 
-      private void EnsureLayeredResources()
+      private void EnsureLayeredResources(int w, int h)
       {
          if (this.layeredMemDC == IntPtr.Zero)
             this.layeredMemDC = CreateCompatibleDC(IntPtr.Zero);
-         if (this.layeredBitmap != IntPtr.Zero) return;
+         if (this.layeredBitmap != IntPtr.Zero && this.cachedLayeredW == w && this.cachedLayeredH == h) return;
 
-         var bmi = MakeBmi(ContentW, ContentH);
+         if (this.layeredBitmap != IntPtr.Zero) { DeleteObject(this.layeredBitmap); this.layeredBitmap = IntPtr.Zero; }
+         var bmi = MakeBmi(w, h);
          this.layeredBitmap = CreateDIBSection(IntPtr.Zero, ref bmi, 0, out this.layeredBits, IntPtr.Zero, 0);
          SelectObject(this.layeredMemDC, this.layeredBitmap);
+         this.cachedLayeredW = w;
+         this.cachedLayeredH = h;
       }
 
       private void FreeLayeredResources()
@@ -330,6 +534,8 @@ namespace Lens
             this.layeredBits   = IntPtr.Zero;
          }
          if (this.layeredMemDC != IntPtr.Zero) { DeleteDC(this.layeredMemDC); this.layeredMemDC = IntPtr.Zero; }
+         this.cachedLayeredW = -1;
+         this.cachedLayeredH = -1;
       }
 
       private void EnsureFinalResources(int w, int h)
@@ -388,7 +594,7 @@ namespace Lens
          // Stamp content at (ShadowMarginL, ShadowMarginT), forcing alpha=255.
          int cStride = ContentW * 4;
          int fStride = tw * 4;
-         for (int y = 0; y < ContentH; y++)
+         for (int y = 0; y < this.contentH; y++)
          for (int x = 0; x < ContentW; x++)
          {
             int src = Marshal.ReadInt32(this.layeredBits, y * cStride + x * 4);
@@ -412,19 +618,19 @@ namespace Lens
       {
          if (this.shadowAlpha != null &&
              this.cachedShadowContentW == ContentW &&
-             this.cachedShadowContentH == ContentH)
+             this.cachedShadowContentH == this.contentH)
             return;
 
          this.cachedShadowContentW = ContentW;
-         this.cachedShadowContentH = ContentH;
+         this.cachedShadowContentH = this.contentH;
 
          int tw = ContentW + ShadowMarginL + ShadowMarginR;
-         int th = ContentH + ShadowMarginT + ShadowMarginB;
+         int th = this.contentH + ShadowMarginT + ShadowMarginB;
 
          int sx = ShadowMarginL + ShadowOffsetX;
          int sy = ShadowMarginT + ShadowOffsetY;
          var src = new float[tw * th];
-         for (int y = sy; y < sy + ContentH; y++)
+         for (int y = sy; y < sy + this.contentH; y++)
          for (int x = sx; x < sx + ContentW; x++)
             src[y * tw + x] = 1f;
 

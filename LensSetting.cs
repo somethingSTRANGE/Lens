@@ -91,6 +91,16 @@ namespace Lens
                     Defaults.SizeIncrement));
       }
 
+      // ── Info panel display toggles — not persisted; UI to be added later. ──────────────
+      public bool InfoShowHex   { get; set; } = true;
+      public bool InfoShowRgb   { get; set; } = true;
+      public bool InfoShowHsl   { get; set; } = true;
+      public bool InfoShow12Bit { get; set; } = true;
+      public bool InfoShowWeb   { get; set; } = true;
+      public bool InfoShowMouse { get; set; } = true;
+      public bool InfoShowSize  { get; set; } = true;
+      public bool InfoShowZoom  { get; set; } = true;
+
       public event PropertyChangedEventHandler PropertyChanged;
 
       private void OnPropertyChanged([CallerMemberName] string propertyName = null)

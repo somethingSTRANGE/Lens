@@ -372,8 +372,8 @@ namespace Lens
             // On display change: re-initialize to default, except start inverse if the cursor
             // is already within the right-edge flip zone of the new display.
             int infoW      = InfoForm.ContentW;
-            bool rightClips = cursorPos.X + gapX + w + InfoForm.PanelGap + infoW > screen.Bounds.Right;
-            bool leftClips  = cursorPos.X - gapX - w - InfoForm.PanelGap - infoW < screen.Bounds.Left;
+            bool rightClips = cursorPos.X + gapX + w + InfoForm.PanelMargin + infoW > screen.Bounds.Right;
+            bool leftClips  = cursorPos.X - gapX - w - InfoForm.PanelMargin - infoW < screen.Bounds.Left;
 
             if (screen.DeviceName != this.lastScreenName)
             {
