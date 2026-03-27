@@ -342,6 +342,7 @@ namespace Lens
          using var labelFont = new Font("Segoe UI", 12f, FontStyle.Regular, GraphicsUnit.Pixel);
          using var labelBrush = new SolidBrush(Color.FromArgb(0xFF, 0xFF, 0xE1));
          using var valueBrush = new SolidBrush(Color.White);
+         using var valueCopyBrush = new SolidBrush(Color.FromArgb(0xFF, 0xE5, 0x66));
          using var outlinePen = new Pen(Color.DarkSlateGray) { Alignment = PenAlignment.Inset };
 
          // Layout constants.
@@ -375,7 +376,15 @@ namespace Lens
             // g.DrawLine(outlinePen, new PointF(LabelX - 1, baseline), new PointF(layout.Right + 2, baseline));
 
             DrawStringAtBaseline(label, labelFont, labelBrush, LabelX, baseline);
-            DrawStringAtBaseline(value, this.valueFont, valueBrush, ValueX, baseline);
+
+            var display = value;
+            var brush = valueBrush;
+            if (d.IsCopied(label))
+            {
+               display = "Copied";
+               brush = valueCopyBrush;
+            }
+            DrawStringAtBaseline(display, this.valueFont, brush, ValueX, baseline);
          }
 
          float y = PanelPadding; // tracked Y; advances as sections are drawn

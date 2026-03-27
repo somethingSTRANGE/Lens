@@ -203,6 +203,16 @@ namespace Lens
       [DllImport("kernel32.dll")] private static extern IntPtr GetModuleHandle(string lpModuleName);
       [DllImport("user32.dll", SetLastError = true)]
       private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+      [DllImport("user32.dll")] private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+      [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+      private const uint ModCtrlAltShift = 0x0007; // MOD_CONTROL | MOD_ALT | MOD_SHIFT
+      private const int HotkeyHex   = 1;
+      private const int HotkeyRgb   = 2;
+      private const int HotkeyHsl   = 3;
+      private const int HotkeyWeb   = 4;
+      private const int Hotkey12BitA = 5;
+      private const int Hotkey12BitB = 6;
 
       // Called by Program.cs on unhandled exceptions to ensure mouse speed is always restored.
       internal static void EmergencyRestoreMouseSpeed()
@@ -212,9 +222,33 @@ namespace Lens
       }
 
 
+      protected override void WndProc(ref Message m)
+      {
+         const int WmHotkey = 0x0312;
+         if (m.Msg == WmHotkey)
+         {
+            switch (m.WParam.ToInt32())
+            {
+               case HotkeyHex:    this.CopyToClipboardColorHex();   return;
+               case HotkeyRgb:    this.CopyToClipboardColorRGB();   return;
+               case HotkeyHsl:    this.CopyToClipboardColorHSL();   return;
+               case HotkeyWeb:    this.CopyToClipboardColorWeb();   return;
+               case Hotkey12BitA:
+               case Hotkey12BitB: this.CopyToClipboardColor12Bit(); return;
+            }
+         }
+         base.WndProc(ref m);
+      }
+
       protected override void OnClosing(CancelEventArgs e)
       {
          this.timer.Stop();
+         UnregisterHotKey(this.Handle, HotkeyHex);
+         UnregisterHotKey(this.Handle, HotkeyRgb);
+         UnregisterHotKey(this.Handle, HotkeyHsl);
+         UnregisterHotKey(this.Handle, HotkeyWeb);
+         UnregisterHotKey(this.Handle, Hotkey12BitA);
+         UnregisterHotKey(this.Handle, Hotkey12BitB);
          if (this.mouseHook != IntPtr.Zero) { UnhookWindowsHookEx(this.mouseHook); this.mouseHook = IntPtr.Zero; }
          this.infoForm.Close();
          this.ResetMouseSpeed();
@@ -292,9 +326,6 @@ namespace Lens
             case Keys.OemCloseBrackets: this.ChangeWidth(Lens.Defaults.SizeIncrement); break;
             case Keys.OemSemicolon: this.ChangeHeight(-Lens.Defaults.SizeIncrement); break;
             case Keys.OemQuotes: this.ChangeHeight(Lens.Defaults.SizeIncrement); break;
-            case Keys.H: this.CopyToClipboardColorHSL(); break;
-            case Keys.R: this.CopyToClipboardColorRGB(); break;
-            case Keys.X: this.CopyToClipboardColorHex(); break;
             default:
                Debug.WriteLine((ModifierKeys == Keys.Control ? "CTRL-" : string.Empty) +
                                (ModifierKeys == Keys.Alt ? "ALT-" : string.Empty) +
@@ -311,8 +342,8 @@ namespace Lens
       private IntPtr MouseHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
       {
          const int WmMousewheel = 0x020A;
-         const Keys CtrlShift = Keys.Control | Keys.Shift;
-         if (nCode >= 0 && wParam.ToInt32() == WmMousewheel && (Control.ModifierKeys & CtrlShift) == CtrlShift)
+         const Keys CtrlAltShift = Keys.Control | Keys.Alt | Keys.Shift;
+         if (nCode >= 0 && wParam.ToInt32() == WmMousewheel && (Control.ModifierKeys & CtrlAltShift) == CtrlAltShift)
          {
             // MSLLHOOKSTRUCT.mouseData is at offset 8; high word is the signed wheel delta.
             var mouseData  = Marshal.ReadInt32(lParam, 8);
@@ -338,11 +369,19 @@ namespace Lens
          // on WS_EX_LAYERED windows. Revisit once basic rendering is stable.
          this.timer.Enabled = true;
 
-         // Low-level mouse hook for Ctrl+Shift+scroll zoom — works even when the lens lacks focus.
+         // Low-level mouse hook for Ctrl+Alt+Shift+scroll zoom — works even when the lens lacks focus.
          this.mouseHookProc = this.MouseHookCallback;
          this.mouseHook = SetWindowsHookEx(14 /*WH_MOUSE_LL*/, this.mouseHookProc, GetModuleHandle(null), 0);
          if (this.mouseHook == IntPtr.Zero)
             Debug.WriteLine($"SetWindowsHookEx failed: error {Marshal.GetLastWin32Error()}");
+
+         // Global copy hotkeys — active only while the lens is open.
+         RegisterHotKey(this.Handle, HotkeyHex,    ModCtrlAltShift, (uint)Keys.X);
+         RegisterHotKey(this.Handle, HotkeyRgb,    ModCtrlAltShift, (uint)Keys.R);
+         RegisterHotKey(this.Handle, HotkeyHsl,    ModCtrlAltShift, (uint)Keys.H);
+         RegisterHotKey(this.Handle, HotkeyWeb,    ModCtrlAltShift, (uint)Keys.W);
+         RegisterHotKey(this.Handle, Hotkey12BitA, ModCtrlAltShift, (uint)Keys.A);
+         RegisterHotKey(this.Handle, Hotkey12BitB, ModCtrlAltShift, (uint)Keys.B);
       }
 
       private void RenderFrame()
@@ -843,16 +882,31 @@ namespace Lens
       private void CopyToClipboardColorHex()
       {
          Clipboard.SetText(this.infoControl.ValueColorHex);
+         this.infoControl.NotifyCopied("HEX");
+      }
+
+      private void CopyToClipboardColor12Bit()
+      {
+         Clipboard.SetText(this.infoControl.ValueColor12Bit);
+         this.infoControl.NotifyCopied("12-Bit");
+      }
+
+      private void CopyToClipboardColorWeb()
+      {
+         Clipboard.SetText(this.infoControl.ValueColorWeb);
+         this.infoControl.NotifyCopied("Web");
       }
 
       private void CopyToClipboardColorRGB()
       {
          Clipboard.SetText($"rgb({this.infoControl.ValueColorRGB})");
+         this.infoControl.NotifyCopied("RGB");
       }
 
       private void CopyToClipboardColorHSL()
       {
          Clipboard.SetText($"hsl({this.infoControl.ValueColorHSL})");
+         this.infoControl.NotifyCopied("HSL");
       }
 
       private void DecreaseGridSize()

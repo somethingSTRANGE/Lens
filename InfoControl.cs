@@ -32,6 +32,19 @@ namespace Lens
       public Color  SwatchColor    { get; private set; }
       public bool   HasColorName   => !string.IsNullOrEmpty(this.ValueColorName);
 
+      private string copiedLabel = string.Empty;
+      private DateTime copiedAt  = DateTime.MinValue;
+
+      public void NotifyCopied(string label)
+      {
+         this.copiedLabel = label;
+         this.copiedAt    = DateTime.UtcNow;
+      }
+
+      /// <summary>Returns true within 600 ms of the last copy of the named row.</summary>
+      public bool IsCopied(string label) =>
+         this.copiedLabel == label && (DateTime.UtcNow - this.copiedAt).TotalMilliseconds < 600;
+
       public void UpdateInfo(Point mousePosition, Color color)
       {
          this.ValueColorHex   = ColorAsHex(color);
