@@ -43,8 +43,13 @@ namespace Lens
       private const int ColumnGap = 4;
       private const int RowGap = 2;
       private const int RowHeight = 16;
-      private const int SectionGap = ColumnGap * 2 - RowGap;
-      
+
+      /// <summary>
+      ///    SectionGap is only drawn after a section, and a section contains at least one row. Each row
+      ///    ends with a RowGap for simplicity. The desired SectionGap should account for that extra RowGap.
+      /// </summary>
+      private const int SectionGap = ColumnGap * 2 - RowGap; 
+
       private const int IconSize = 16;
       private const int IconX = PanelPadding;
       
@@ -326,7 +331,6 @@ namespace Lens
 
          using var g = Graphics.FromHdc(this.layeredMemDC);
          g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
-         g.SmoothingMode = SmoothingMode.HighQuality;
          g.SmoothingMode = SmoothingMode.None;
          g.PixelOffsetMode = PixelOffsetMode.Half;
 
@@ -416,13 +420,13 @@ namespace Lens
             DrawIcon(g, this.iconColorPalette, valueBrush, IconX, y, IconSize);
             if (lens.InfoShow12Bit)
             {
-               DrawRow("12-Bit", d.ValueColorHex, y);
+               DrawRow("12-Bit", d.ValueColor12Bit, y);
                y += RowHeight + RowGap;
             }
 
-            if (lens.InfoShowHsl)
+            if (lens.InfoShowWeb)
             {
-               DrawRow("Web", d.ValueColorHex, y);
+               DrawRow("Web", d.ValueColorWeb, y);
                y += RowHeight + RowGap;
             }
          }
