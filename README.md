@@ -1,6 +1,6 @@
 # Lens
 
-<img src="https://raw.githubusercontent.com/somethingSTRANGE/Lens/main/Icons/AppIcon-512.png" width="200"> 
+![Magnification](Docs/lens-magnification-anim.webp)
 
 A pixel-precise screen magnifier with color picker for Windows. Lives in the system tray.
 
