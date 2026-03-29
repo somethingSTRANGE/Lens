@@ -77,31 +77,11 @@ namespace Lens
 
          // this.components = new System.ComponentModel.Container();
          // this.contextMenu = new System.Windows.Forms.ContextMenu();
-         var menuItemOpen = new MenuItem { DefaultItem = true, Text = "Show" };
-         var menuItemSettings = new MenuItem
-               { Text = "&Settings...", Shortcut = Shortcut.CtrlShiftS, ShowShortcut = true };
-         var menuItemSeparator = new MenuItem { Text = "-" };
-         var menuItemExit = new MenuItem
-            {
-               // Site = null,
-               // Name = null,
-               // Tag = null,
-               // BarBreak = false,
-               // Break = false,
-               // Checked = false,
-               DefaultItem = false,
-               // OwnerDraw = false,
-               Enabled = true,
-               // Index = 3,
-               // MdiList = false,
-               // MergeType = MenuMerge.Add,
-               // MergeOrder = 0,
-               // RadioCheck = false,
-               Text = "E&xit",
-               // Shortcut = Shortcut.None,
-               ShowShortcut = true,
-               Visible = true
-            };
+         var menuItemOpen = new ToolStripMenuItem { Text = "Show" };
+         var menuItemSettings = new ToolStripMenuItem
+               { Text = "&Settings...", ShortcutKeys = Keys.Control | Keys.Shift | Keys.S, ShowShortcutKeys = true };
+         var menuItemSeparator = new ToolStripSeparator();
+         var menuItemExit = new ToolStripMenuItem { Text = "E&xit" };
 
          // menuItemExit.Index = 0;
          // menuItem.Text = "E&xit";
@@ -109,12 +89,12 @@ namespace Lens
          menuItemSettings.Click += this.menuItemSettings_Click;
          menuItemOpen.Click += this.menuItemOpen_Click;
 
-         this.contextMenu.MenuItems.AddRange(new[]
+         this.contextMenu.Items.AddRange(new ToolStripItem[]
                { menuItemOpen, menuItemSettings, menuItemSeparator, menuItemExit });
 
          // this.notifyIcon = new NotifyIcon(this.components);
          this.notifyIcon.Icon = this.Icon;
-         this.notifyIcon.ContextMenu = this.contextMenu;
+         this.notifyIcon.ContextMenuStrip = this.contextMenu;
          this.iconPicture.Image = new Icon(this.Icon, 64, 64).ToBitmap();
 
          // WinForms creates the Win32 handle lazily on first Show(). Force it now so

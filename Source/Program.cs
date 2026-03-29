@@ -44,7 +44,7 @@ namespace Lens
       {
          var logsDir = System.IO.Path.Combine(Application.StartupPath, "Logs");
          System.IO.Directory.CreateDirectory(logsDir);
-         Debug.Listeners.Add(new TextWriterTraceListener(
+         Trace.Listeners.Add(new TextWriterTraceListener(
             System.IO.Path.Combine(logsDir, "lens-debug.log")));
          Debug.AutoFlush = true;
          Debug.WriteLine("-----");
@@ -68,6 +68,7 @@ namespace Lens
             {
                Application.EnableVisualStyles();
                Application.SetCompatibleTextRenderingDefault(false);
+               Lens.Instance.Load();
                settingsForm = new SettingsForm();
                Application.Run();
             }

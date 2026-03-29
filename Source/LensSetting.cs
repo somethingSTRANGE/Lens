@@ -4,12 +4,15 @@
 // </copyright>
 // -------------------------------------------------------------------------------------
 
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
-using Lens.Properties;
+using System.Text.Json;
 
 namespace Lens
 {
@@ -17,76 +20,99 @@ namespace Lens
    {
       private static Lens instance;
 
-      private Lens()
-      {
-      }
+      private bool   _autoClose       = true;
+      private Color  _gridColor       = Color.Black;
+      private byte   _gridSize        = 4;
+      private int    _gridStyle       = 2;
+      private short  _height          = 160;
+      private bool   _hideCursor      = true;
+      private byte   _magnification   = 4;
+      private bool   _nearestNeighbor = true;
+      private byte   _speedFactor     = 4;
+      private short  _width           = 150;
+
+      private Lens() { }
 
       public static Lens Instance => instance ?? (instance = new Lens());
 
+      public static string SettingsFilePath
+      {
+         get
+         {
+            var company = Assembly.GetExecutingAssembly()
+               .GetCustomAttribute<AssemblyCompanyAttribute>()?.Company;
+            if (string.IsNullOrWhiteSpace(company)) company = "Strange";
+            var product = Assembly.GetExecutingAssembly()
+               .GetCustomAttribute<AssemblyProductAttribute>()?.Product ?? "Lens";
+            return Path.Combine(
+               Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+               company, product, "settings.json");
+         }
+      }
+
       public bool AutoClose
       {
-         get => Settings.Default.AutoClose;
-         set => this.SetProperty(nameof(Settings.Default.AutoClose), value);
+         get => _autoClose;
+         set => SetPersisted(ref _autoClose, value);
       }
 
       public Color GridColor
       {
-         get => Settings.Default.GridColor;
-         set => this.SetProperty(nameof(Settings.Default.GridColor), value);
+         get => _gridColor;
+         set => SetPersisted(ref _gridColor, value);
       }
 
       public byte GridSize
       {
-         get => Settings.Default.GridSize;
-         set => this.SetProperty(nameof(Settings.Default.GridSize),
-            value.Clamp(Defaults.MinGridSize, Defaults.MaxGridSize));
+         get => _gridSize;
+         set => SetPersisted(ref _gridSize, value.Clamp(Defaults.MinGridSize, Defaults.MaxGridSize));
       }
 
       public int GridStyle
       {
-         get => Settings.Default.GridStyle;
-         set => this.SetProperty(nameof(Settings.Default.GridStyle),
+         get => _gridStyle;
+         set => SetPersisted(ref _gridStyle,
             value.Clamp((int)GridStyleOptions.None, (int)GridStyleOptions.DashDotDot));
       }
 
       public short Height
       {
-         get => Settings.Default.Height;
-         set => this.SetProperty(nameof(Settings.Default.Height),
+         get => _height;
+         set => SetPersisted(ref _height,
             (short)(value.Clamp(Defaults.MinHeight, Defaults.MaxHeight) / Defaults.SizeIncrement *
                     Defaults.SizeIncrement));
       }
 
       public bool HideCursor
       {
-         get => Settings.Default.HideCursor;
-         set => this.SetProperty(nameof(Settings.Default.HideCursor), value);
+         get => _hideCursor;
+         set => SetPersisted(ref _hideCursor, value);
       }
 
       public byte Magnification
       {
-         get => Settings.Default.Magnification;
-         set => this.SetProperty(nameof(Settings.Default.Magnification),
+         get => _magnification;
+         set => SetPersisted(ref _magnification,
             value.Clamp(Defaults.MinMagnification, Defaults.MaxMagnification));
       }
 
       public bool NearestNeighbor
       {
-         get => Settings.Default.NearestNeighbor;
-         set => this.SetProperty(nameof(Settings.Default.NearestNeighbor), value);
+         get => _nearestNeighbor;
+         set => SetPersisted(ref _nearestNeighbor, value);
       }
 
       public byte SpeedFactor
       {
-         get => Settings.Default.SpeedFactor;
-         set => this.SetProperty(nameof(Settings.Default.SpeedFactor),
+         get => _speedFactor;
+         set => SetPersisted(ref _speedFactor,
             value.Clamp(Defaults.MinSpeedFactor, Defaults.MaxSpeedFactor));
       }
 
       public short Width
       {
-         get => Settings.Default.Width;
-         set => this.SetProperty(nameof(Settings.Default.Width),
+         get => _width;
+         set => SetPersisted(ref _width,
             (short)(value.Clamp(Defaults.MinWidth, Defaults.MaxWidth) / Defaults.SizeIncrement *
                     Defaults.SizeIncrement));
       }
@@ -103,19 +129,73 @@ namespace Lens
 
       public event PropertyChangedEventHandler PropertyChanged;
 
-      private void OnPropertyChanged([CallerMemberName] string propertyName = null)
+      private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+
+      public void Load()
       {
-         this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+         var path = SettingsFilePath;
+         if (!File.Exists(path)) return;
+         try
+         {
+            var data = JsonSerializer.Deserialize<SettingsData>(File.ReadAllText(path));
+            if (data == null) return;
+            _width           = data.Width;
+            _height          = data.Height;
+            _magnification   = data.Magnification;
+            _gridSize        = data.GridSize;
+            _gridStyle       = data.GridStyle;
+            _gridColor       = ColorTranslator.FromHtml(data.GridColor);
+            _hideCursor      = data.HideCursor;
+            _autoClose       = data.AutoClose;
+            _nearestNeighbor = data.NearestNeighbor;
+            _speedFactor     = data.SpeedFactor;
+            Debug.WriteLine($"Settings loaded from {path}");
+         }
+         catch (Exception ex)
+         {
+            Debug.WriteLine($"Failed to load settings: {ex.Message}");
+         }
       }
 
-      private bool SetProperty<T>(string settingName, T value, [CallerMemberName] string propertyName = null)
+      public void Save()
       {
-         var original = (T)Settings.Default[settingName];
-         if (EqualityComparer<T>.Default.Equals(original, value)) return false;
-         Settings.Default[settingName] = value;
-         Settings.Default.Save();
+         var path = SettingsFilePath;
+         try
+         {
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            var data = new SettingsData
+            {
+               Width            = _width,
+               Height           = _height,
+               Magnification    = _magnification,
+               GridSize         = _gridSize,
+               GridStyle        = _gridStyle,
+               GridColor        = $"#{_gridColor.R:X2}{_gridColor.G:X2}{_gridColor.B:X2}",
+               HideCursor       = _hideCursor,
+               AutoClose        = _autoClose,
+               NearestNeighbor  = _nearestNeighbor,
+               SpeedFactor      = _speedFactor
+            };
+            File.WriteAllText(path, JsonSerializer.Serialize(data, JsonOptions));
+         }
+         catch (Exception ex)
+         {
+            Debug.WriteLine($"Failed to save settings: {ex.Message}");
+         }
+      }
+
+      private void OnPropertyChanged([CallerMemberName] string propertyName = null)
+      {
+         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+      }
+
+      private bool SetPersisted<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+      {
+         if (EqualityComparer<T>.Default.Equals(field, value)) return false;
+         field = value;
          Debug.WriteLine($"{propertyName} = {value}");
-         this.OnPropertyChanged(propertyName);
+         OnPropertyChanged(propertyName);
+         Save();
          return true;
       }
 
@@ -123,8 +203,22 @@ namespace Lens
       {
          if (EqualityComparer<T>.Default.Equals(field, value)) return false;
          field = value;
-         this.OnPropertyChanged(propertyName);
+         OnPropertyChanged(propertyName);
          return true;
+      }
+
+      private class SettingsData
+      {
+         public short  Width            { get; set; } = 150;
+         public short  Height           { get; set; } = 160;
+         public byte   Magnification    { get; set; } = 4;
+         public byte   GridSize         { get; set; } = 4;
+         public int    GridStyle        { get; set; } = 2;
+         public string GridColor        { get; set; } = "#000000";
+         public bool   HideCursor       { get; set; } = true;
+         public bool   AutoClose        { get; set; } = true;
+         public bool   NearestNeighbor  { get; set; } = true;
+         public byte   SpeedFactor      { get; set; } = 4;
       }
 
       public static class Defaults

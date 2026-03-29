@@ -50,7 +50,7 @@ namespace Lens
          this.groupZoom = new System.Windows.Forms.GroupBox();
          this.iconPicture = new System.Windows.Forms.PictureBox();
          this.notifyIcon = new System.Windows.Forms.NotifyIcon(this.components);
-         this.contextMenu = new System.Windows.Forms.ContextMenu();
+         this.contextMenu = new System.Windows.Forms.ContextMenuStrip();
          ((System.ComponentModel.ISupportInitialize)(this.valueMagnification)).BeginInit();
          ((System.ComponentModel.ISupportInitialize)(this.valueSpeedFactor)).BeginInit();
          this.groupGrid.SuspendLayout();
@@ -271,7 +271,7 @@ namespace Lens
          this.ResumeLayout(false);
       }
 
-      private System.Windows.Forms.ContextMenu contextMenu;
+      private System.Windows.Forms.ContextMenuStrip contextMenu;
 
       private System.Windows.Forms.NotifyIcon notifyIcon;
 
