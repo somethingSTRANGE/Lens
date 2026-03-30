@@ -31,6 +31,15 @@ namespace Lens
       private byte   _speedFactor     = 4;
       private short  _width           = 150;
 
+      private bool   _infoShowHex   = true;
+      private bool   _infoShowRgb   = true;
+      private bool   _infoShowHsl   = true;
+      private bool   _infoShow12Bit = true;
+      private bool   _infoShowWeb   = true;
+      private bool   _infoShowMouse = true;
+      private bool   _infoShowSize  = true;
+      private bool   _infoShowZoom  = true;
+
       private Lens() { }
 
       public static Lens Instance => instance ?? (instance = new Lens());
@@ -117,15 +126,15 @@ namespace Lens
                     Defaults.SizeIncrement));
       }
 
-      // ── Info panel display toggles — not persisted; UI to be added later. ──────────────
-      public bool InfoShowHex   { get; set; } = true;
-      public bool InfoShowRgb   { get; set; } = true;
-      public bool InfoShowHsl   { get; set; } = true;
-      public bool InfoShow12Bit { get; set; } = true;
-      public bool InfoShowWeb   { get; set; } = true;
-      public bool InfoShowMouse { get; set; } = true;
-      public bool InfoShowSize  { get; set; } = true;
-      public bool InfoShowZoom  { get; set; } = true;
+      // ── Info panel display toggles — persisted; UI to be added later. ──────────────────
+      public bool InfoShowHex   { get => _infoShowHex;   set => SetPersisted(ref _infoShowHex,   value); }
+      public bool InfoShowRgb   { get => _infoShowRgb;   set => SetPersisted(ref _infoShowRgb,   value); }
+      public bool InfoShowHsl   { get => _infoShowHsl;   set => SetPersisted(ref _infoShowHsl,   value); }
+      public bool InfoShow12Bit { get => _infoShow12Bit; set => SetPersisted(ref _infoShow12Bit, value); }
+      public bool InfoShowWeb   { get => _infoShowWeb;   set => SetPersisted(ref _infoShowWeb,   value); }
+      public bool InfoShowMouse { get => _infoShowMouse; set => SetPersisted(ref _infoShowMouse, value); }
+      public bool InfoShowSize  { get => _infoShowSize;  set => SetPersisted(ref _infoShowSize,  value); }
+      public bool InfoShowZoom  { get => _infoShowZoom;  set => SetPersisted(ref _infoShowZoom,  value); }
 
       public event PropertyChangedEventHandler PropertyChanged;
 
@@ -149,6 +158,14 @@ namespace Lens
             _autoClose       = data.AutoClose;
             _nearestNeighbor = data.NearestNeighbor;
             _speedFactor     = data.SpeedFactor;
+            _infoShowHex     = data.InfoShowHex;
+            _infoShowRgb     = data.InfoShowRgb;
+            _infoShowHsl     = data.InfoShowHsl;
+            _infoShow12Bit   = data.InfoShow12Bit;
+            _infoShowWeb     = data.InfoShowWeb;
+            _infoShowMouse   = data.InfoShowMouse;
+            _infoShowSize    = data.InfoShowSize;
+            _infoShowZoom    = data.InfoShowZoom;
             Debug.WriteLine($"Settings loaded from {path}");
          }
          catch (Exception ex)
@@ -174,7 +191,15 @@ namespace Lens
                HideCursor       = _hideCursor,
                AutoClose        = _autoClose,
                NearestNeighbor  = _nearestNeighbor,
-               SpeedFactor      = _speedFactor
+               SpeedFactor      = _speedFactor,
+               InfoShowHex      = _infoShowHex,
+               InfoShowRgb      = _infoShowRgb,
+               InfoShowHsl      = _infoShowHsl,
+               InfoShow12Bit    = _infoShow12Bit,
+               InfoShowWeb      = _infoShowWeb,
+               InfoShowMouse    = _infoShowMouse,
+               InfoShowSize     = _infoShowSize,
+               InfoShowZoom     = _infoShowZoom
             };
             File.WriteAllText(path, JsonSerializer.Serialize(data, JsonOptions));
          }
@@ -219,6 +244,15 @@ namespace Lens
          public bool   AutoClose        { get; set; } = true;
          public bool   NearestNeighbor  { get; set; } = true;
          public byte   SpeedFactor      { get; set; } = 4;
+
+         public bool   InfoShowHex      { get; set; } = true;
+         public bool   InfoShowRgb      { get; set; } = true;
+         public bool   InfoShowHsl      { get; set; } = true;
+         public bool   InfoShow12Bit    { get; set; } = true;
+         public bool   InfoShowWeb      { get; set; } = true;
+         public bool   InfoShowMouse    { get; set; } = true;
+         public bool   InfoShowSize     { get; set; } = true;
+         public bool   InfoShowZoom     { get; set; } = true;
       }
 
       public static class Defaults
