@@ -40,6 +40,10 @@ namespace Lens
       private bool   _infoShowSize  = true;
       private bool   _infoShowZoom  = true;
 
+      // Debug-only: force a theme regardless of OS setting. Values: "light", "dark", or omit/null for OS default.
+      // Remove this field and all references to it once theme implementation is complete.
+      private string _debugTheme    = null;
+
       private Lens() { }
 
       public static Lens Instance => instance ?? (instance = new Lens());
@@ -126,6 +130,9 @@ namespace Lens
                     Defaults.SizeIncrement));
       }
 
+      // Debug-only: remove once theme implementation is complete.
+      public string DebugTheme => _debugTheme;
+
       // ── Info panel display toggles — persisted; UI to be added later. ──────────────────
       public bool InfoShowHex   { get => _infoShowHex;   set => SetPersisted(ref _infoShowHex,   value); }
       public bool InfoShowRgb   { get => _infoShowRgb;   set => SetPersisted(ref _infoShowRgb,   value); }
@@ -166,6 +173,7 @@ namespace Lens
             _infoShowMouse   = data.InfoShowMouse;
             _infoShowSize    = data.InfoShowSize;
             _infoShowZoom    = data.InfoShowZoom;
+            _debugTheme      = data.DebugTheme;
             Debug.WriteLine($"Settings loaded from {path}");
          }
          catch (Exception ex)
@@ -253,6 +261,9 @@ namespace Lens
          public bool   InfoShowMouse    { get; set; } = true;
          public bool   InfoShowSize     { get; set; } = true;
          public bool   InfoShowZoom     { get; set; } = true;
+
+         [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+         public string DebugTheme       { get; set; } = null;
       }
 
       public static class Defaults

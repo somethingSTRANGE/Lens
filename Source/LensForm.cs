@@ -164,6 +164,7 @@ namespace Lens
          }
       }
 
+      [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
       public Point TargetLocation
       {
          get => this.targetLocation;

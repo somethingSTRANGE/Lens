@@ -69,6 +69,14 @@ namespace Lens
                Application.EnableVisualStyles();
                Application.SetCompatibleTextRenderingDefault(false);
                Lens.Instance.Load();
+               var colorMode = Lens.Instance.DebugTheme switch
+               {
+                  "dark"  => SystemColorMode.Dark,
+                  "light" => SystemColorMode.Classic,
+                  _       => SystemColorMode.System
+               };
+               Debug.WriteLine($"Theme: {colorMode} (debugTheme={Lens.Instance.DebugTheme ?? "none"})");
+               Application.SetColorMode(colorMode);
                settingsForm = new SettingsForm();
                Application.Run();
             }
