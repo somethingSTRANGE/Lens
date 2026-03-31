@@ -27,7 +27,7 @@ namespace Lens
       private short  _height          = 160;
       private bool   _hideCursor      = true;
       private byte   _magnification   = 4;
-      private bool   _nearestNeighbor = true;
+      private ScalingMode _scalingMode = ScalingMode.NearestNeighbor;
       private byte   _speedFactor     = 4;
       private short  _width           = 150;
 
@@ -109,10 +109,10 @@ namespace Lens
             value.Clamp(Defaults.MinMagnification, Defaults.MaxMagnification));
       }
 
-      public bool NearestNeighbor
+      public ScalingMode Scaling
       {
-         get => _nearestNeighbor;
-         set => SetPersisted(ref _nearestNeighbor, value);
+         get => _scalingMode;
+         set => SetPersisted(ref _scalingMode, value);
       }
 
       public byte SpeedFactor
@@ -163,7 +163,7 @@ namespace Lens
             _gridColor       = ColorTranslator.FromHtml(data.GridColor);
             _hideCursor      = data.HideCursor;
             _autoClose       = data.AutoClose;
-            _nearestNeighbor = data.NearestNeighbor;
+            _scalingMode     = (ScalingMode)data.Scaling;
             _speedFactor     = data.SpeedFactor;
             _infoShowHex     = data.InfoShowHex;
             _infoShowRgb     = data.InfoShowRgb;
@@ -198,7 +198,7 @@ namespace Lens
                GridColor        = $"#{_gridColor.R:X2}{_gridColor.G:X2}{_gridColor.B:X2}",
                HideCursor       = _hideCursor,
                AutoClose        = _autoClose,
-               NearestNeighbor  = _nearestNeighbor,
+               Scaling          = (int)_scalingMode,
                SpeedFactor      = _speedFactor,
                InfoShowHex      = _infoShowHex,
                InfoShowRgb      = _infoShowRgb,
@@ -250,7 +250,7 @@ namespace Lens
          public string GridColor        { get; set; } = "#000000";
          public bool   HideCursor       { get; set; } = true;
          public bool   AutoClose        { get; set; } = true;
-         public bool   NearestNeighbor  { get; set; } = true;
+         public int    Scaling           { get; set; } = 0; // ScalingMode.NearestNeighbor
          public byte   SpeedFactor      { get; set; } = 4;
 
          public bool   InfoShowHex      { get; set; } = true;

@@ -447,16 +447,15 @@ namespace Lens
 
             g.Clear(Color.Black);
 
-            if (lens.NearestNeighbor)
+            (g.InterpolationMode, g.PixelOffsetMode) = lens.Scaling switch
             {
-               g.InterpolationMode = InterpolationMode.NearestNeighbor;
-               g.PixelOffsetMode = PixelOffsetMode.Half;
-            }
-            else
-            {
-               g.InterpolationMode = InterpolationMode.Default;
-               g.PixelOffsetMode = PixelOffsetMode.Default;
-            }
+               ScalingMode.NearestNeighbor     => (InterpolationMode.NearestNeighbor,     PixelOffsetMode.Half),
+               ScalingMode.Bilinear            => (InterpolationMode.Bilinear,            PixelOffsetMode.Default),
+               ScalingMode.HighQualityBilinear => (InterpolationMode.HighQualityBilinear, PixelOffsetMode.Default),
+               ScalingMode.Bicubic             => (InterpolationMode.Bicubic,             PixelOffsetMode.Default),
+               ScalingMode.HighQualityBicubic  => (InterpolationMode.HighQualityBicubic,  PixelOffsetMode.Default),
+               _                               => (InterpolationMode.NearestNeighbor,     PixelOffsetMode.Half)
+            };
 
             this.CopyScreen(cursorPos);
             // Sample the pixel at the cursor — scrBmp is centered on cursorPos so the
