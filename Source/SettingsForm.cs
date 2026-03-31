@@ -20,6 +20,9 @@ namespace Lens
 
       [DllImport("user32.dll")] private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
       [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+      [DllImport("dwmapi.dll")] private static extern int  DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+
+      private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
 
       private LensForm activeLens;
       private int      clickCount;
@@ -366,9 +369,27 @@ namespace Lens
          this.Activate();
       }
 
+      protected override CreateParams CreateParams
+      {
+         get
+         {
+            var cp = base.CreateParams;
+            cp.ExStyle |= 0x02000000; // WS_EX_COMPOSITED — buffers the whole window before presenting, prevents white flash
+            return cp;
+         }
+      }
+
       protected override void OnHandleCreated(EventArgs e)
       {
          base.OnHandleCreated(e);
+
+         // Force dark title bar (focused + unfocused) — SetColorMode alone doesn't set the DWM attribute per-window.
+         if (IsDarkMode())
+         {
+            int dark = 1;
+            DwmSetWindowAttribute(this.Handle, DWMWA_USE_IMMERSIVE_DARK_MODE, ref dark, sizeof(int));
+         }
+
          if (!RegisterHotKey(this.Handle, HotkeyToggle, ModCtrlAltShift, (uint)Keys.Z))
             Debug.WriteLine($"RegisterHotKey failed: error {Marshal.GetLastWin32Error()}");
       }
@@ -381,7 +402,18 @@ namespace Lens
 
       protected override void WndProc(ref Message m)
       {
-         const int WmHotkey = 0x0312;
+         const int WmHotkey    = 0x0312;
+         const int WmNcActivate = 0x0086;
+
+         // Re-apply dark title bar on every focus change — WM_NCACTIVATE fires when Windows
+         // redraws the non-client area, and something (SetColorMode/WinForms internals) can
+         // reset the DWM attribute before we see the message.
+         if (m.Msg == WmNcActivate && IsDarkMode())
+         {
+            int dark = 1;
+            DwmSetWindowAttribute(this.Handle, DWMWA_USE_IMMERSIVE_DARK_MODE, ref dark, sizeof(int));
+         }
+
          if (m.Msg == WmHotkey && m.WParam.ToInt32() == HotkeyToggle)
             this.ToggleLens();
          base.WndProc(ref m);
