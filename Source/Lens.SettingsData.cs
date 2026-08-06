@@ -13,6 +13,8 @@ namespace StrangeLens
    {
       private class SettingsData
       {
+         public DistractionFreeSettings? DistractionFree { get; init; }
+
          public int GridOpacity { get; init; } = 20;
 
          public byte GridSize { get; init; } = 4;

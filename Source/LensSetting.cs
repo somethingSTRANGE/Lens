@@ -115,6 +115,8 @@ namespace StrangeLens
 
       private readonly Timer saveTimer;
 
+      private DistractionFreeSettings distractionFree = new();
+
       private int gridOpacity = 20;
 
       private byte gridSize = 4;
@@ -182,6 +184,19 @@ namespace StrangeLens
             return this.themes.GetValueOrDefault(name, defaultDark);
          }
       }
+
+      /// <summary>Config-file-only; not editable via any Settings UI. See
+      ///    <see cref="DistractionFreeSettings"/>.</summary>
+      public DistractionFreeSettings DistractionFree
+      {
+         get => this.distractionFree;
+         private set => this.distractionFree = value ?? new DistractionFreeSettings();
+      }
+
+      /// <summary>Whether distraction-free mode (Ctrl+Alt+Shift+D, focus-scoped to <c>LensForm</c>
+      ///    ) is currently on. In-memory only -- persists for the life of the process but resets
+      ///    to off on the next launch; never written to settings.json.</summary>
+      public bool DistractionFreeActive { get; set; }
 
       public int GridOpacity
       {
@@ -337,15 +352,14 @@ namespace StrangeLens
       {
          get
          {
-            var company = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyCompanyAttribute>()
-               ?.Company;
+            var company = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyCompanyAttribute>()?.Company;
             if (string.IsNullOrWhiteSpace(company))
             {
                company = "Strange";
             }
 
-            var product = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyProductAttribute>()
-               ?.Product ?? "StrangeLens";
+            var product = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyProductAttribute>()?.Product
+                          ?? "StrangeLens";
             return Path.Combine(
                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                company,
@@ -404,6 +418,7 @@ namespace StrangeLens
                   InfoShowZoom = this.infoShowZoom,
                   Theme = this.theme,
                   Themes = this.themes,
+                  DistractionFree = this.distractionFree,
                };
             File.WriteAllText(path, JsonSerializer.Serialize(data, jsonOptions));
 
@@ -447,14 +462,10 @@ namespace StrangeLens
             this.LoadIfNotPending(nameof(this.Height), () => this.Height = data.Height);
             this.LoadIfNotPending(nameof(this.Magnification), () => this.Magnification = data.Magnification);
             this.LoadIfNotPending(nameof(this.GridSize), () => this.GridSize = data.GridSize);
-            this.LoadIfNotPending(
-               nameof(this.GridStyle),
-               () => this.GridStyle = (GridStyleOption)data.GridStyle);
+            this.LoadIfNotPending(nameof(this.GridStyle), () => this.GridStyle = (GridStyleOption)data.GridStyle);
             this.LoadIfNotPending(nameof(this.GridOpacity), () => this.GridOpacity = data.GridOpacity);
             this.LoadIfNotPending(nameof(this.Scaling), () => this.Scaling = (ScalingModeOption)data.Scaling);
-            this.LoadIfNotPending(
-               nameof(this.PrecisionSpeed),
-               () => this.PrecisionSpeed = data.PrecisionSpeed);
+            this.LoadIfNotPending(nameof(this.PrecisionSpeed), () => this.PrecisionSpeed = data.PrecisionSpeed);
             this.LoadIfNotPending(nameof(this.InfoShowHex), () => this.InfoShowHex = data.InfoShowHex);
             this.LoadIfNotPending(nameof(this.InfoShowRgb), () => this.InfoShowRgb = data.InfoShowRgb);
             this.LoadIfNotPending(nameof(this.InfoShowHsl), () => this.InfoShowHsl = data.InfoShowHsl);
@@ -470,6 +481,9 @@ namespace StrangeLens
             }
 
             this.LoadIfNotPending(nameof(this.Theme), () => this.Theme = data.Theme);
+
+            // Config-file-only, never edited at runtime -- no pending-edit race to guard against.
+            this.DistractionFree = data.DistractionFree ?? new DistractionFreeSettings();
 
             Debug.WriteLine($"Settings loaded from {path}");
          }

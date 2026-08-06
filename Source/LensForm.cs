@@ -215,9 +215,7 @@ namespace StrangeLens
          else
          {
             this.measureActive = true;
-            this.measureAnchor = (ModifierKeys & CtrlAltShift) == CtrlAltShift
-               ? this.lastCursorPos
-               : Cursor.Position;
+            this.measureAnchor = (ModifierKeys & CtrlAltShift) == CtrlAltShift ? this.lastCursorPos : Cursor.Position;
             this.measureAnimPhase = 0f;
             this.measureAnimDir = 1f;
          }
@@ -274,6 +272,7 @@ namespace StrangeLens
             case Keys.Escape: this.Close(); break;
             case Keys.Oemplus when e.Control: this.ChangeMagnification(1); break;
             case Keys.OemMinus when e.Control: this.ChangeMagnification(-1); break;
+            case Keys.D when (ModifierKeys & CtrlAltShift) == CtrlAltShift: this.ToggleDistractionFree(); break;
          }
       }
 
@@ -454,12 +453,10 @@ namespace StrangeLens
       private static bool IsOnCrosshairBoundary(int x, int y, int cx, int cy, int mag, int lineWidth)
       {
          return ((y >= cy) && (y < cy + lineWidth)) || ((x >= cx) && (x < cx + lineWidth))
-                                                    || ((y >= cy + mag) && (y < cy + mag + lineWidth)
-                                                                        && (x >= cx)
-                                                                        && (x <= (cx + mag + lineWidth) - 1))
-                                                    || ((x >= cx + mag) && (x < cx + mag + lineWidth)
-                                                                        && (y >= cy)
-                                                                        && (y <= (cy + mag + lineWidth) - 1));
+                                                    || ((y >= cy + mag) && (y < cy + mag + lineWidth) && (x >= cx)
+                                                        && (x <= (cx + mag + lineWidth) - 1))
+                                                    || ((x >= cx + mag) && (x < cx + mag + lineWidth) && (y >= cy)
+                                                        && (y <= (cy + mag + lineWidth) - 1));
       }
 
       private static uint ToColorRef(Color c)
@@ -903,7 +900,9 @@ namespace StrangeLens
       private void EnsureGridBitmap(int w, int h)
       {
          var lens = Lens.Instance;
-         var gridStyle = lens.GridStyle;
+         var gridStyle = lens.DistractionFreeActive && !lens.DistractionFree.ShowGrid
+            ? GridStyleOption.None
+            : lens.GridStyle;
          if ((this.gridBmp != null) && (this.cachedGridW == w) && (this.cachedGridH == h)
              && (this.cachedGridMag == lens.Magnification) && (this.cachedGridSize == lens.GridSize)
              && (this.cachedGridStyle == gridStyle) && (this.cachedGridLineWidth == this.lineWidth))
@@ -966,13 +965,7 @@ namespace StrangeLens
                         biCompression = 0, // BI_RGB
                      },
                };
-            this.layeredBitmap = CreateDIBSection(
-               IntPtr.Zero,
-               ref bmi,
-               0,
-               out this.layeredBits,
-               IntPtr.Zero,
-               0);
+            this.layeredBitmap = CreateDIBSection(IntPtr.Zero, ref bmi, 0, out this.layeredBits, IntPtr.Zero, 0);
             SelectObject(this.layeredMemDC, this.layeredBitmap);
             this.layeredGrp = Graphics.FromHdc(this.layeredMemDC);
             this.layeredW = w;
@@ -1166,10 +1159,7 @@ namespace StrangeLens
 
             if (this.measureActive)
             {
-               this.measureAnimPhase = Math.Clamp(
-                  this.measureAnimPhase + (this.measureAnimDir * 0.1f),
-                  0f,
-                  1f);
+               this.measureAnimPhase = Math.Clamp(this.measureAnimPhase + (this.measureAnimDir * 0.1f), 0f, 1f);
                if ((this.measureAnimPhase >= 1f) || (this.measureAnimPhase <= 0f))
                {
                   this.measureAnimDir = -this.measureAnimDir;
@@ -1237,10 +1227,10 @@ namespace StrangeLens
 
             g.Clear(Color.Black);
 
-            (g.InterpolationMode, g.PixelOffsetMode) = lens.Scaling switch
+            var scalingMode = lens.DistractionFreeActive ? lens.DistractionFree.ScalingMode : lens.Scaling;
+            (g.InterpolationMode, g.PixelOffsetMode) = scalingMode switch
                {
-                  ScalingModeOption.NearestNeighbor => (InterpolationMode.NearestNeighbor,
-                     PixelOffsetMode.Half),
+                  ScalingModeOption.NearestNeighbor => (InterpolationMode.NearestNeighbor, PixelOffsetMode.Half),
                   ScalingModeOption.Bilinear => (InterpolationMode.Bilinear, PixelOffsetMode.Default),
                   ScalingModeOption.HighQualityBilinear => (InterpolationMode.HighQualityBilinear,
                      PixelOffsetMode.Default),
@@ -1262,7 +1252,10 @@ namespace StrangeLens
 
             g.Flush();
             this.ApplyDifferenceGrid(w, h);
-            this.ApplyDifferenceCrosshair(w, h);
+            if (!lens.DistractionFreeActive || lens.DistractionFree.ShowCrosshair)
+            {
+               this.ApplyDifferenceCrosshair(w, h);
+            }
 
             DrawBorder(g, w, h, this.Focused, this.lineWidth);
 
@@ -1289,6 +1282,15 @@ namespace StrangeLens
          {
             this.isRendering = false;
          }
+      }
+
+      /// <summary>Toggles the reduced-noise view (see <see cref="Lens.DistractionFreeActive"/>):
+      ///    grid/crosshair/color-info visibility and the scaling mode swap to the
+      ///    <see cref="DistractionFreeSettings"/> config-file overrides while active.</summary>
+      private void ToggleDistractionFree()
+      {
+         Lens.Instance.DistractionFreeActive = !Lens.Instance.DistractionFreeActive;
+         this.RenderFrame();
       }
    }
 }

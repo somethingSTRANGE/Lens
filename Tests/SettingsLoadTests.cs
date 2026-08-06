@@ -7,7 +7,6 @@
 
 namespace StrangeLens.Tests
 {
-   using System.Drawing;
    using System.IO;
 
    using NUnit.Framework;
@@ -40,11 +39,35 @@ namespace StrangeLens.Tests
       }
 
       [Test]
+      public void DistractionFreeActive_Default_IsFalse()
+      {
+         Assert.That(Lens.Instance.DistractionFreeActive, Is.False);
+      }
+
+      [Test]
       public void Load_DarkThemeName_Applies()
       {
          this.WriteJson(@"{""Theme"": ""dark""}");
          Lens.Instance.Load(this.tempPath);
          Assert.That(Lens.Instance.Theme, Is.EqualTo("dark"));
+      }
+
+      [Test]
+      public void Load_DistractionFreeConfig_Applies()
+      {
+         this.WriteJson(
+            @"{""DistractionFree"": {
+            ""ShowGrid"": true, ""ShowCrosshair"": true, ""ShowInfo"": true, ""ScalingMode"": 3
+         }}");
+         Lens.Instance.Load(this.tempPath);
+
+         Assert.Multiple(() =>
+            {
+               Assert.That(Lens.Instance.DistractionFree.ShowGrid, Is.True);
+               Assert.That(Lens.Instance.DistractionFree.ShowCrosshair, Is.True);
+               Assert.That(Lens.Instance.DistractionFree.ShowInfo, Is.True);
+               Assert.That(Lens.Instance.DistractionFree.ScalingMode, Is.EqualTo(ScalingModeOption.Bicubic));
+            });
       }
 
       [Test]
@@ -142,10 +165,66 @@ namespace StrangeLens.Tests
       }
 
       [Test]
+      public void Load_MissingDistractionFree_UsesDefaults()
+      {
+         this.WriteJson("{}");
+         Lens.Instance.Load(this.tempPath);
+
+         Assert.Multiple(() =>
+            {
+               Assert.That(Lens.Instance.DistractionFree.ShowGrid, Is.False);
+               Assert.That(Lens.Instance.DistractionFree.ShowCrosshair, Is.False);
+               Assert.That(Lens.Instance.DistractionFree.ShowInfo, Is.False);
+               Assert.That(Lens.Instance.DistractionFree.ScalingMode, Is.EqualTo(ScalingModeOption.HighQualityBicubic));
+            });
+      }
+
+      [Test]
       public void Load_MissingFile_DoesNotThrow()
       {
          File.Delete(this.tempPath);
          Assert.That(() => Lens.Instance.Load(this.tempPath), Throws.Nothing);
+      }
+
+      /// <summary>Reproduces the cross-process race: a property changed here but not yet saved
+      ///    must survive a reload of a file that still has the old value -- otherwise a
+      ///    Settings-process edit can get clobbered by a reload triggered by the lens process's
+      ///    own (older) write, or vice versa.</summary>
+      [Test]
+      public void Load_PendingLocalChange_NotClobberedByReload()
+      {
+         this.WriteJson(@"{""Magnification"": 4}");
+         Lens.Instance.Load(this.tempPath);
+         Assert.That(Lens.Instance.Magnification, Is.EqualTo(4));
+
+         // Not yet saved -- Magnification is now "pending" from this process's point of view.
+         Lens.Instance.Magnification = 10;
+
+         // A reload of a file that still reflects the pre-edit value (e.g. an in-flight
+         // watcher callback for an earlier write) must not clobber the pending edit.
+         this.WriteJson(@"{""Magnification"": 4}");
+         Lens.Instance.Load(this.tempPath);
+
+         Assert.That(Lens.Instance.Magnification, Is.EqualTo(10));
+      }
+
+      [Test]
+      public void Load_PendingLocalChange_OtherPropertiesStillReload()
+      {
+         this.WriteJson(@"{""Magnification"": 4, ""GridSize"": 4}");
+         Lens.Instance.Load(this.tempPath);
+
+         // Only Magnification has a pending local edit; GridSize does not.
+         Lens.Instance.Magnification = 10;
+
+         this.WriteJson(@"{""Magnification"": 4, ""GridSize"": 9}");
+         Lens.Instance.Load(this.tempPath);
+
+         Assert.Multiple(() =>
+            {
+               Assert.That(Lens.Instance.Magnification, Is.EqualTo(10), "pending edit preserved");
+               Assert.That(Lens.Instance.GridSize, Is.EqualTo(9), "non-pending property still reloads");
+            });
       }
 
       [Test]
@@ -227,47 +306,6 @@ namespace StrangeLens.Tests
          this.WriteJson(@"{""Width"": 155}");
          Lens.Instance.Load(this.tempPath);
          Assert.That(Lens.Instance.Width, Is.EqualTo(140));
-      }
-
-      /// <summary>Reproduces the cross-process race: a property changed here but not yet
-      ///    saved must survive a reload of a file that still has the old value -- otherwise
-      ///    a Settings-process edit can get clobbered by a reload triggered by the lens
-      ///    process's own (older) write, or vice versa.</summary>
-      [Test]
-      public void Load_PendingLocalChange_NotClobberedByReload()
-      {
-         this.WriteJson(@"{""Magnification"": 4}");
-         Lens.Instance.Load(this.tempPath);
-         Assert.That(Lens.Instance.Magnification, Is.EqualTo(4));
-
-         // Not yet saved -- Magnification is now "pending" from this process's point of view.
-         Lens.Instance.Magnification = 10;
-
-         // A reload of a file that still reflects the pre-edit value (e.g. an in-flight
-         // watcher callback for an earlier write) must not clobber the pending edit.
-         this.WriteJson(@"{""Magnification"": 4}");
-         Lens.Instance.Load(this.tempPath);
-
-         Assert.That(Lens.Instance.Magnification, Is.EqualTo(10));
-      }
-
-      [Test]
-      public void Load_PendingLocalChange_OtherPropertiesStillReload()
-      {
-         this.WriteJson(@"{""Magnification"": 4, ""GridSize"": 4}");
-         Lens.Instance.Load(this.tempPath);
-
-         // Only Magnification has a pending local edit; GridSize does not.
-         Lens.Instance.Magnification = 10;
-
-         this.WriteJson(@"{""Magnification"": 4, ""GridSize"": 9}");
-         Lens.Instance.Load(this.tempPath);
-
-         Assert.Multiple(() =>
-            {
-               Assert.That(Lens.Instance.Magnification, Is.EqualTo(10), "pending edit preserved");
-               Assert.That(Lens.Instance.GridSize, Is.EqualTo(9), "non-pending property still reloads");
-            });
       }
    }
 }

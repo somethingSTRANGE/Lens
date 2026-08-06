@@ -10,6 +10,7 @@ A pixel-precise screen magnifier, color picker, and measurement tool for Windows
 - Live color picker — Hex, RGB, HSL, 12-bit, and web-safe formats
 - On-screen measurement tool with anchor points
 - Precision mouse mode for sub-pixel alignment
+- Distraction Free mode for a clutter-free, high-quality zoomed view
 - Global keyboard shortcuts
 - System tray integration
 - Portable — no installation required
@@ -59,32 +60,39 @@ Measurement mode remains active until you toggle it off or close the lens.
 
 The Info panel displays the color beneath the cursor in Hex, RGB, and HSL color formats, as well as 12-bit and web-safe color conversions. Each format has a dedicated copy shortcut (see table below). The copied format is confirmed briefly in the Info panel.
 
+## Distraction Free Mode
+
+Press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> while the lens has focus to strip the view down to just the magnified image — the grid, crosshair, and Info panel disappear, and scaling switches to smooth, high-quality bicubic. It's useful for inspecting the shape or color transitions of an image without the sampling overlay competing for your attention. Press the shortcut again to return to your normal view.
+
+The toggle itself resets to off every time Strange Lens restarts, but what it hides — and which scaling mode it uses — is configurable by editing the `DistractionFree` block in `settings.json` (`%LocalAppData%\Strange\Strange Lens\settings.json`). There's no Settings UI for this; it's a config-file-only option.
+
 ## Keyboard & Mouse Shortcuts
 
-| Input | Action |
-| --- | --- |
+| Input                                                        | Action                         |
+|--------------------------------------------------------------|--------------------------------|
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> | Toggle lens window open/closed |
 
 The following shortcuts are only available when the lens is open.
 
-| Input | Action |
-| --- | --- |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd> | Precision mode is active while held |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd> | Copy color as Hex |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> | Copy color as RGB |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Copy color as HSL |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd> | Copy nearest 12-bit color |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd> | Copy nearest web-safe color |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd> | Toggle measurement mode on/off |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Scroll</kbd> | Magnification zoom in/out |
+| Input                                                             | Action                              |
+|-------------------------------------------------------------------|-------------------------------------|
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>                   | Precision mode is active while held |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>      | Copy color as Hex                   |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>      | Copy color as RGB                   |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>      | Copy color as HSL                   |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd>      | Copy nearest 12-bit color           |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd>      | Copy nearest web-safe color         |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd>      | Toggle measurement mode on/off      |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Scroll</kbd> | Magnification zoom in/out           |
 
 The following shortcuts are only available when the lens is open and has focus, which is indicated by the blue border around the lens window.
 
-| Input | Action |
-| --- | --- |
-| <kbd>Ctrl</kbd>+<kbd>=</kbd> and <kbd>Ctrl</kbd>+<kbd>-</kbd> | Magnification zoom in/out |
-| <kbd>Arrow keys</kbd> | Nudge mouse cursor 1px |
-| <kbd>ESC</kbd> | Close lens window |
+| Input                                                         | Action                       |
+|---------------------------------------------------------------|------------------------------|
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd>  | Toggle Distraction Free mode |
+| <kbd>Ctrl</kbd>+<kbd>=</kbd> and <kbd>Ctrl</kbd>+<kbd>-</kbd> | Magnification zoom in/out    |
+| <kbd>Arrow keys</kbd>                                         | Nudge mouse cursor 1px       |
+| <kbd>ESC</kbd>                                                | Close lens window            |
 
 <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> is the primary way to open and close the lens. <kbd>ESC</kbd> is a fallback that only works when the lens window has focus. The lens window border color indicates when the window has focus.
 

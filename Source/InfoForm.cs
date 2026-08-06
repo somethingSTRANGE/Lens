@@ -167,8 +167,13 @@ namespace StrangeLens
          get
          {
             var lens = Lens.Instance;
-            return lens.InfoShowHex || lens.InfoShowRgb || lens.InfoShowHsl || lens.InfoShow12Bit
-                   || lens.InfoShowWeb || lens.InfoShowMouse || lens.InfoShowSize || lens.InfoShowZoom;
+            if (lens.DistractionFreeActive && !lens.DistractionFree.ShowInfo)
+            {
+               return false;
+            }
+
+            return lens.InfoShowHex || lens.InfoShowRgb || lens.InfoShowHsl || lens.InfoShow12Bit || lens.InfoShowWeb
+                   || lens.InfoShowMouse || lens.InfoShowSize || lens.InfoShowZoom;
          }
       }
 
