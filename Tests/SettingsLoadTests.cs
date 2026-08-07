@@ -101,20 +101,25 @@ namespace StrangeLens.Tests
          Assert.That(Lens.Instance.GridSize, Is.EqualTo(Lens.Defaults.MinGridSize));
       }
 
+      /// <summary>GridStyle is enum-typed (unlike GridSize/Width/Height, which clamp) -- an
+      ///    undefined value is rejected and the previous value kept, matching Scaling's
+      ///    Load_InvalidScalingMode_KeepsDefault. "Clamp to the nearest named style" stopped
+      ///    making sense once GridStyle became a small set of named options rather than a
+      ///    continuous range.</summary>
       [Test]
-      public void Load_GridStyleAboveMax_ClampsToMax()
+      public void Load_GridStyleAboveMax_KeepsDefault()
       {
          this.WriteJson(@"{""GridStyle"": 99}");
          Lens.Instance.Load(this.tempPath);
-         Assert.That(Lens.Instance.GridStyle, Is.EqualTo((int)GridStyleOption.DashDotDot));
+         Assert.That(Lens.Instance.GridStyle, Is.EqualTo(GridStyleOption.Dash));
       }
 
       [Test]
-      public void Load_GridStyleBelowMin_ClampsToMin()
+      public void Load_GridStyleBelowMin_KeepsDefault()
       {
          this.WriteJson(@"{""GridStyle"": -1}");
          Lens.Instance.Load(this.tempPath);
-         Assert.That(Lens.Instance.GridStyle, Is.EqualTo((int)GridStyleOption.None));
+         Assert.That(Lens.Instance.GridStyle, Is.EqualTo(GridStyleOption.Dash));
       }
 
       [Test]
@@ -268,7 +273,7 @@ namespace StrangeLens.Tests
                Assert.That(Lens.Instance.Height, Is.EqualTo(220));
                Assert.That(Lens.Instance.Magnification, Is.EqualTo(6));
                Assert.That(Lens.Instance.GridSize, Is.EqualTo(8));
-               Assert.That(Lens.Instance.GridStyle, Is.EqualTo(1));
+               Assert.That(Lens.Instance.GridStyle, Is.EqualTo(GridStyleOption.Solid));
                Assert.That(Lens.Instance.GridOpacity, Is.EqualTo(40));
                Assert.That(Lens.Instance.Scaling, Is.EqualTo(ScalingModeOption.HighQualityBilinear));
                Assert.That(Lens.Instance.PrecisionSpeed, Is.EqualTo(25));
