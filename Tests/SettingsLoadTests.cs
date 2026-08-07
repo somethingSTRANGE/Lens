@@ -189,7 +189,7 @@ namespace StrangeLens.Tests
       /// <summary>Reproduces the cross-process race: a property changed here but not yet saved
       ///    must survive a reload of a file that still has the old value -- otherwise a
       ///    Settings-process edit can get clobbered by a reload triggered by the lens process's
-      ///    own (older) write, or vice versa.</summary>
+      ///    own (older) save, or vice versa.</summary>
       [Test]
       public void Load_PendingLocalChange_NotClobberedByReload()
       {
@@ -200,8 +200,8 @@ namespace StrangeLens.Tests
          // Not yet saved -- Magnification is now "pending" from this process's point of view.
          Lens.Instance.Magnification = 10;
 
-         // A reload of a file that still reflects the pre-edit value (e.g. an in-flight
-         // watcher callback for an earlier write) must not clobber the pending edit.
+         // A reload of a file that still reflects the pre-edit value (e.g., an in-flight
+         // watcher callback for an earlier save) must not clobber the pending edit.
          this.WriteJson(@"{""Magnification"": 4}");
          Lens.Instance.Load(this.tempPath);
 

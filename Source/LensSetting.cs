@@ -14,48 +14,13 @@ namespace StrangeLens
    using System.Collections.Generic;
    using System.ComponentModel;
    using System.Diagnostics;
-   using System.Drawing;
    using System.IO;
    using System.Linq;
    using System.Reflection;
    using System.Runtime.CompilerServices;
    using System.Text.Json;
-   using System.Text.Json.Serialization;
 
    using Microsoft.Win32;
-
-   public class ThemePalette
-   {
-      [JsonPropertyOrder(5)]
-      public Color AccentNormal { get; init; }
-
-      [JsonPropertyOrder(6)]
-      public Color AccentStrong { get; init; }
-
-      [JsonPropertyOrder(4)]
-      public Color AccentSubtle { get; init; }
-
-      [JsonPropertyOrder(1)]
-      public Color Background { get; init; }
-
-      [JsonPropertyOrder(3)]
-      public Color Border { get; init; }
-
-      [JsonPropertyOrder(2)]
-      public Color Control { get; init; }
-
-      [JsonPropertyOrder(0)]
-      public Color Inset { get; init; }
-
-      [JsonPropertyOrder(8)]
-      public Color TextNormal { get; init; }
-
-      [JsonPropertyOrder(9)]
-      public Color TextStrong { get; init; }
-
-      [JsonPropertyOrder(7)]
-      public Color TextSubtle { get; init; }
-   }
 
    public partial class Lens : INotifyPropertyChanged
    {
@@ -68,41 +33,9 @@ namespace StrangeLens
 
       public static readonly int[] PrecisionSpeedOptions = [10, 25, 45, 70];
 
-      private static readonly ThemePalette defaultDark = new()
-         {
-            Inset = ColorTranslator.FromHtml("#191C22"), // Nord0, -10% L
-            Background = ColorTranslator.FromHtml("#2E3440"), // Nord0
-            Control = ColorTranslator.FromHtml("#434C5E"), // Nord2
-            Border = ColorTranslator.FromHtml("#4C566A"), // Nord3
-            AccentSubtle = ColorTranslator.FromHtml("#55749b"), // Nord10, -10% L
-            AccentNormal = ColorTranslator.FromHtml("#5E81AC"), // Nord10
-            AccentStrong = ColorTranslator.FromHtml("#5791d8"), // Nord10, +15% L +30% S
-            TextSubtle = ColorTranslator.FromHtml("#A4B2CB"), // Nord5, -20% L
-            TextNormal = ColorTranslator.FromHtml("#E5E9F0"), // Nord5
-            TextStrong = ColorTranslator.FromHtml("#FFFFFF"), // Nord5, +10% L
-         };
-
-      private static readonly ThemePalette defaultLight = new()
-         {
-            Inset = ColorTranslator.FromHtml("#B7C2D7"), // Nord4, -10% L
-            Background = ColorTranslator.FromHtml("#E5E9F0"), // Nord5
-            Control = ColorTranslator.FromHtml("#ECEFF4"), // Nord6
-            Border = ColorTranslator.FromHtml("#D8DEE9"), // Nord4
-            AccentSubtle = ColorTranslator.FromHtml("#55749b"), // Nord10, +15% L +30% S
-            AccentNormal = ColorTranslator.FromHtml("#5E81AC"), // Nord10
-            AccentStrong = ColorTranslator.FromHtml("#5791d8"), // Nord10, +10% L +20% S
-            TextSubtle = ColorTranslator.FromHtml("#4C566A"), // Nord3
-            TextNormal = ColorTranslator.FromHtml("#3B4252"), // Nord1
-            TextStrong = ColorTranslator.FromHtml("#2E3440"), // Nord0
-         };
-
       private static readonly JsonSerializerOptions jsonOptions = new()
          {
             WriteIndented = true,
-            Converters =
-               {
-                  new ColorHexConverter(),
-               },
          };
 
       private static Lens? instance;
@@ -149,17 +82,10 @@ namespace StrangeLens
 
       private string theme = "system";
 
-      private Dictionary<string, ThemePalette> themes;
-
       private short width = 150;
 
       private Lens()
       {
-         this.themes = new Dictionary<string, ThemePalette>(StringComparer.OrdinalIgnoreCase)
-            {
-               ["dark"] = defaultDark,
-               ["light"] = defaultLight,
-            };
          this.saveTimer = new Timer(SaveDebounceMs)
             {
                AutoReset = false,
@@ -176,21 +102,12 @@ namespace StrangeLens
 
       public static Lens Instance => instance ??= new Lens();
 
-      public ThemePalette ActivePalette
-      {
-         get
-         {
-            var name = this.theme == "system" ? IsOsDarkMode() ? "dark" : "light" : this.theme;
-            return this.themes.GetValueOrDefault(name, defaultDark);
-         }
-      }
-
       /// <summary>Config-file-only; not editable via any Settings UI. See
       ///    <see cref="DistractionFreeSettings"/>.</summary>
       public DistractionFreeSettings DistractionFree
       {
          get => this.distractionFree;
-         private set => this.distractionFree = value ?? new DistractionFreeSettings();
+         private set => this.distractionFree = value;
       }
 
       /// <summary>Whether distraction-free mode (Ctrl+Alt+Shift+D, focus-scoped to <c>LensForm</c>
@@ -314,28 +231,8 @@ namespace StrangeLens
             this.SetPersisted(
                ref this.theme,
                string.IsNullOrEmpty(value) ? "system" :
-               (value == "system") || this.themes.ContainsKey(value) ? value :
+               (value == "system") || (value == "dark") || (value == "light") ? value :
                IsOsDarkMode() ? "dark" : "light");
-      }
-
-      public IReadOnlyDictionary<string, ThemePalette> Themes
-      {
-         get => this.themes;
-         private set
-         {
-            this.themes = new Dictionary<string, ThemePalette>(StringComparer.OrdinalIgnoreCase)
-               {
-                  ["dark"] = defaultDark,
-                  ["light"] = defaultLight,
-               };
-
-            foreach (var kvp in value)
-            {
-               this.themes[kvp.Key] = this.themes.TryGetValue(kvp.Key, out var fallback)
-                  ? FillMissing(kvp.Value, fallback)
-                  : kvp.Value;
-            }
-         }
       }
 
       public short Width
@@ -417,7 +314,6 @@ namespace StrangeLens
                   InfoShowSize = this.infoShowSize,
                   InfoShowZoom = this.infoShowZoom,
                   Theme = this.theme,
-                  Themes = this.themes,
                   DistractionFree = this.distractionFree,
                };
             File.WriteAllText(path, JsonSerializer.Serialize(data, jsonOptions));
@@ -475,11 +371,6 @@ namespace StrangeLens
             this.LoadIfNotPending(nameof(this.InfoShowSize), () => this.InfoShowSize = data.InfoShowSize);
             this.LoadIfNotPending(nameof(this.InfoShowZoom), () => this.InfoShowZoom = data.InfoShowZoom);
 
-            if (data.Themes != null)
-            {
-               this.Themes = data.Themes;
-            }
-
             this.LoadIfNotPending(nameof(this.Theme), () => this.Theme = data.Theme);
 
             // Config-file-only, never edited at runtime -- no pending-edit race to guard against.
@@ -491,26 +382,6 @@ namespace StrangeLens
          {
             Debug.WriteLine($"Failed to load settings: {ex.Message}");
          }
-      }
-
-      /// <summary>JSON properties absent from an older settings.json deserialize to default
-      ///    (Color) (Color.Empty, A=0). Every persisted color is opaque (A=255), so A==0 reliably
-      ///    means "never set" -- backfill those from the built-in palette for that theme name.</summary>
-      private static ThemePalette FillMissing(ThemePalette loaded, ThemePalette fallback)
-      {
-         return new ThemePalette
-            {
-               Inset = loaded.Inset.A == 0 ? fallback.Inset : loaded.Inset,
-               Background = loaded.Background.A == 0 ? fallback.Background : loaded.Background,
-               Control = loaded.Control.A == 0 ? fallback.Control : loaded.Control,
-               Border = loaded.Border.A == 0 ? fallback.Border : loaded.Border,
-               AccentSubtle = loaded.AccentSubtle.A == 0 ? fallback.AccentSubtle : loaded.AccentSubtle,
-               AccentNormal = loaded.AccentNormal.A == 0 ? fallback.AccentNormal : loaded.AccentNormal,
-               AccentStrong = loaded.AccentStrong.A == 0 ? fallback.AccentStrong : loaded.AccentStrong,
-               TextSubtle = loaded.TextSubtle.A == 0 ? fallback.TextSubtle : loaded.TextSubtle,
-               TextNormal = loaded.TextNormal.A == 0 ? fallback.TextNormal : loaded.TextNormal,
-               TextStrong = loaded.TextStrong.A == 0 ? fallback.TextStrong : loaded.TextStrong,
-            };
       }
 
       private void LoadIfNotPending(string propertyName, Action apply)

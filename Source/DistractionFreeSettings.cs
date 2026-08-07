@@ -14,10 +14,10 @@ namespace StrangeLens
    {
       public ScalingModeOption ScalingMode { get; init; } = ScalingModeOption.HighQualityBicubic;
 
-      public bool ShowCrosshair { get; init; }
+      public bool ShowCrosshair { get; init; } = false;
 
-      public bool ShowGrid { get; init; }
+      public bool ShowGrid { get; init; } = false;
 
-      public bool ShowInfo { get; init; }
+      public bool ShowInfo { get; init; } = false;
    }
 }

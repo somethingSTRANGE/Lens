@@ -27,7 +27,8 @@ Tests live in `Tests/StrangeLens.Tests.csproj` (NUnit). Run via Rider or `dotnet
 - **Program.cs** — enforces single-instance via Mutex (`strange-lens-app-mutex`). `Application.Run` starts with `TrayForm` as the host; `LensForm` is created/shown on demand.
 
 ### Settings Singleton
-- **LensSetting.cs** (`Lens` class) — `INotifyPropertyChanged` singleton holding all configuration (magnification, grid size/color/style, window dimensions, speed factor, info panel row toggles). Persisted as JSON to `%LOCALAPPDATA%\Strange\Strange Lens\settings.json` via `System.Text.Json`. Debounced save fires 500ms after the last change; also flushed on clean exit. Tracks per-property pending-save state so a reload (see `Lens.FileWatcher.cs`) never clobbers a local edit that hasn't been flushed to disk yet — needed because Settings now runs as a separate process (see `SettingsApp/`) that can write the same file concurrently.
+- **LensSetting.cs** (`Lens` class) — `INotifyPropertyChanged` singleton holding all configuration (magnification, grid size/style, window dimensions, speed factor, info panel row toggles). Persisted as JSON to `%LOCALAPPDATA%\Strange\Strange Lens\settings.json` via `System.Text.Json`. Debounced save fires 500ms after the last change; also flushed on clean exit. Tracks per-property pending-save state so a reload (see `Lens.FileWatcher.cs`) never clobbers a local edit that hasn't been flushed to disk yet — needed because Settings now runs as a separate process (see `SettingsApp/`) that can write the same file concurrently.
+- `Lens.Theme` ("system"/"dark"/"light") only drives WinForms' `Application.SetColorMode` in `Program.cs`. The old per-theme `ThemePalette`/`ActivePalette`/`Themes` color config (Nord-based, from the pre-WinUI3 era) was removed — Settings and About now use OS/Fluent theming directly and never referenced it.
 - Default: 150×160px window, 4× magnification, 4px grid, Dash style.
 
 ### Rendering (LensForm)

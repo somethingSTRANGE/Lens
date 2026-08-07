@@ -7,8 +7,6 @@
 
 namespace StrangeLens
 {
-   using System.Collections.Generic;
-
    public partial class Lens
    {
       private class SettingsData
@@ -46,8 +44,6 @@ namespace StrangeLens
          public int Scaling { get; init; } = (int)ScalingModeOption.NearestNeighbor;
 
          public string Theme { get; init; } = "system";
-
-         public Dictionary<string, ThemePalette>? Themes { get; init; }
 
          public short Width { get; init; } = 150;
       }
